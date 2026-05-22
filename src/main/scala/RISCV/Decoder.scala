@@ -3,16 +3,12 @@ package RISCV
 import chisel3._
 import chisel3.util._
 import _root_.circt.stage.ChiselStage
-import upickle.default
 
 object InstructionFormat extends ChiselEnum {
     val R, I, S, B, U, J = Value
 }
 
-/** @param width
-  *   Bit width (default: 32 bits)
-  */
-class Decoder(val width: Int = 32) extends Module {
+class Decoder() extends Module {
     val io = IO(new Bundle {
         val instruction = Input(UInt(32.W));
         val rs1 = Output(UInt(5.W));
