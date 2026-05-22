@@ -51,6 +51,14 @@ class Core() extends Module {
 	execute_stage_1.io.rs1 := read_stage.io.out_a
 	execute_stage_1.io.rs2 := read_stage.io.out_b
 
+	val write_stage = Module(new WriteStage())
+	write_stage.io.instruction := execute_stage_1.io.next_instruction
+	write_stage.io.value := execute_stage_1.io.out
+
+	registers.io.write_enable := write_stage.io.register_write
+	registers.io.write_address := write_stage.io.register_address
+	registers.io.in := write_stage.io.register_value
+
 	when(io.execute) {
 		program_pointer := program_pointer + 4.U
 
@@ -71,6 +79,11 @@ class Core() extends Module {
 
 		printf("=== Execute 1 ===\n");
 		printf("Out: %b\n", execute_stage_1.io.out);
+
+		printf("=== Write ===\n");
+		printf("Write: %b\n", write_stage.io.register_write);
+		printf("Address: %b\n", write_stage.io.register_address);
+		printf("Value: %b\n", write_stage.io.register_value);
 	}.otherwise {
 		printf("Loading...\n");
 

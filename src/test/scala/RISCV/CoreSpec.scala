@@ -31,7 +31,7 @@ class CoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
 			dut.io.execute.poke(true.B)
 
-            dut.clock.step(4)
+            dut.clock.step(8)
         }
     }
 }
