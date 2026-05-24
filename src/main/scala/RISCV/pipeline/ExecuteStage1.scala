@@ -10,9 +10,11 @@ class ExecuteStage1() extends Module {
 		val instruction = Input(new InstructionBundle())
 		val rs1 = Input(UInt(32.W))
 		val rs2 = Input(UInt(32.W))
+		val valid = Input(Bool())
 
 		val next_instruction = Output(new InstructionBundle())
 		val out = Output(UInt(32.W))
+		val next_valid = Output(Bool())
     })
 
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
@@ -26,4 +28,8 @@ class ExecuteStage1() extends Module {
 			io.out := io.rs1 + io.instruction.immediate;
 		}
 	}
+
+	val valid = RegInit(false.B)
+	valid := io.valid
+	io.next_valid := valid
 }

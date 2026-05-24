@@ -24,7 +24,6 @@ class Core() extends Module {
     registers.io.in := 0.U(32.W)
 
 	val memory = Module(new Memory())
-	memory.io.address_1 := program_pointer
 	memory.io.read_1 := true.B
 	memory.io.write_1 := false.B
 	memory.io.write_value_1 := 0.U
@@ -36,13 +35,23 @@ class Core() extends Module {
 
 	memory.io.btns := 0.U
 
+	val fetch_stage = Module(new FetchStage())
+	fetch_stage.io.execute := io.execute
+	fetch_stage.io.program_pointer := program_pointer
+	fetch_stage.io.memory_read_value := memory.io.read_value_1
+	
+	memory.io.address_1 := fetch_stage.io.memory_read_address
+	
 	val decode_stage = Module(new DecoderStage())
-	decode_stage.io.instruction := memory.io.read_value_1
+	decode_stage.io.instruction := fetch_stage.io.instruction
+	decode_stage.io.valid := fetch_stage.io.next_valid
 
 	val read_stage = Module(new ReadStage())
 	read_stage.io.instruction := decode_stage.io.decoded
 	read_stage.io.register_value_a := registers.io.out_a
 	read_stage.io.register_value_b := registers.io.out_b
+	read_stage.io.valid := decode_stage.io.next_valid
+
 	registers.io.read_address_a := read_stage.io.register_read_a
     registers.io.read_address_b := read_stage.io.register_read_b
 
@@ -50,10 +59,12 @@ class Core() extends Module {
 	execute_stage_1.io.instruction := read_stage.io.next_instruction
 	execute_stage_1.io.rs1 := read_stage.io.out_a
 	execute_stage_1.io.rs2 := read_stage.io.out_b
+	execute_stage_1.io.valid := read_stage.io.next_valid
 
 	val write_stage = Module(new WriteStage())
 	write_stage.io.instruction := execute_stage_1.io.next_instruction
 	write_stage.io.value := execute_stage_1.io.out
+	write_stage.io.valid := execute_stage_1.io.next_valid
 
 	registers.io.write_enable := write_stage.io.register_write
 	registers.io.write_address := write_stage.io.register_address
@@ -62,9 +73,10 @@ class Core() extends Module {
 	when(io.execute) {
 		program_pointer := program_pointer + 4.U
 
-		printf("\n\n\n=== Memory ===\n");
+		printf("\n\n\n=== Fetch ===\n");
 		printf("Program Pointer: %d\n", program_pointer);
-		printf("Data: %b\n", memory.io.read_value_1);
+		printf("Data: %b\n", fetch_stage.io.instruction);
+		printf("Valid: %b\n", fetch_stage.io.next_valid);
 
 		printf("=== Decode ===\n");
 		printf("Opcode: %b\n", decode_stage.io.decoded.opcode);
@@ -72,18 +84,22 @@ class Core() extends Module {
 		printf("Rs1: %d\n", decode_stage.io.decoded.rs1);
 		printf("Rs2: %d\n", decode_stage.io.decoded.rs2);
 		printf("Rsd: %d\n", decode_stage.io.decoded.rd);
+		printf("Valid: %b\n", decode_stage.io.next_valid);
 
 		printf("=== Read ===\n");
 		printf("A: %b\n", read_stage.io.out_a);
 		printf("B: %b\n", read_stage.io.out_b);
+		printf("Valid: %b\n", read_stage.io.next_valid);
 
 		printf("=== Execute 1 ===\n");
 		printf("Out: %b\n", execute_stage_1.io.out);
+		printf("Valid: %b\n", execute_stage_1.io.next_valid);
 
 		printf("=== Write ===\n");
 		printf("Write: %b\n", write_stage.io.register_write);
 		printf("Address: %b\n", write_stage.io.register_address);
 		printf("Value: %b\n", write_stage.io.register_value);
+		printf("Valid: %b\n", write_stage.io.next_valid);
 	}.otherwise {
 		printf("Loading...\n");
 

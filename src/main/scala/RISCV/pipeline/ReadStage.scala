@@ -7,6 +7,7 @@ import scala.math._
 class ReadStage() extends Module {
     val io = IO(new Bundle {
 		val instruction = Input(new InstructionBundle())
+		val valid = Input(Bool())
 
 		val register_read_a = Output(UInt(5.W))
 		val register_value_a = Input(UInt(32.W))
@@ -16,6 +17,7 @@ class ReadStage() extends Module {
 		val next_instruction = Output(new InstructionBundle())
 		val out_a = Output(UInt(32.W))
 		val out_b = Output(UInt(32.W))
+		val next_valid = Output(Bool())
     })
 	
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
@@ -32,4 +34,8 @@ class ReadStage() extends Module {
 
 	io.register_read_a := io.instruction.rs1
 	io.register_read_b := io.instruction.rs2
+
+	val valid = RegInit(false.B)
+	valid := io.valid
+	io.next_valid := valid
 }
