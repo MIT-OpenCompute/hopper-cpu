@@ -147,13 +147,72 @@ class ExecuteStage1() extends Module {
 			is("b111_0110011".U) {
 				out := io.rs1 | io.rs2
 			}
+
+			// JAL
+			is("b1101111".U) {
+				out := instruction_pointer + 4.U
+
+				io.program_pointer_jump_flush := true.B
+				io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+			}
+
+			// JALR
+			is("b000_1100111".U) {
+				out := instruction_pointer + 4.U
+
+				io.program_pointer_jump_flush := true.B
+				io.program_pointer_target := (io.rs1 + io.instruction.immediate.asSInt).asUInt & 0xFFFFFFFEL.U
+			}
+
+			// BEQ
+			is("b000_110011".U) {
+				when(io.rs1 === io.rs2) {
+					io.program_pointer_jump_flush := true.B
+					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+				}
+			}
+
+			// BNEQ
+			is("b001_110011".U) {
+				when(io.rs1 =/= io.rs2) {
+					io.program_pointer_jump_flush := true.B
+					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+				}
+			}
+
+			// BLT
+			is("b100_110011".U) {
+				when(io.rs1.asSInt < io.rs2.asSInt) {
+					io.program_pointer_jump_flush := true.B
+					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+				}
+			}
+
+			// BLTU
+			is("b110_110011".U) {
+				when(io.rs1 < io.rs2) {
+					io.program_pointer_jump_flush := true.B
+					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+				}
+			}
+
+			// BGE
+			is("b101_110011".U) {
+				when(io.rs1.asSInt >= io.rs2.asSInt) {
+					io.program_pointer_jump_flush := true.B
+					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+				}
+			}
+
+			// BGEU
+			is("b111_110011".U) {
+				when(io.rs1 >= io.rs2) {
+					io.program_pointer_jump_flush := true.B
+					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+				}
+			}
 		}
 	}
-
-	// TODO: trigger flush when JAL or JALR or any jump
-
-	// io.program_pointer_jump_flush := true.B
-	// io.program_pointer_target := 0.U
 
 	val valid = RegInit(false.B)
 	valid := io.valid
