@@ -35,19 +35,24 @@ class Core() extends Module {
 
 	memory.io.btns := 0.U
 
+	// ==== FETCH ====
+
 	val fetch_stage = Module(new FetchStage())
 	fetch_stage.io.execute := io.execute
 	fetch_stage.io.program_pointer := program_pointer
 	fetch_stage.io.memory_read_value := memory.io.read_value_1
 	fetch_stage.io.flush := false.B
 
-	program_pointer := program_pointer + 4.U
-	
 	memory.io.address_1 := fetch_stage.io.memory_read_address
+
+	// ==== DECODE ====
 	
 	val decode_stage = Module(new DecodeStage())
 	decode_stage.io.instruction := fetch_stage.io.instruction
 	decode_stage.io.valid := fetch_stage.io.next_valid
+	decode_stage.io.flush := false.B
+
+	// ==== READ ====
 
 	val read_stage = Module(new ReadStage())
 	read_stage.io.instruction := decode_stage.io.decoded
@@ -59,11 +64,21 @@ class Core() extends Module {
 	registers.io.read_address_a := read_stage.io.register_read_a
     registers.io.read_address_b := read_stage.io.register_read_b
 
+	// ==== EXECUTE 1 ====
+
 	val execute_stage_1 = Module(new ExecuteStage1())
 	execute_stage_1.io.instruction := read_stage.io.next_instruction
 	execute_stage_1.io.rs1 := read_stage.io.out_a
 	execute_stage_1.io.rs2 := read_stage.io.out_b
 	execute_stage_1.io.valid := read_stage.io.next_valid
+
+	when(io.execute) {
+		program_pointer := program_pointer + 4.U
+	}
+
+	// ==== EXECUTE 2 ====
+
+	// ==== WRITE ====
 
 	val write_stage = Module(new WriteStage())
 	write_stage.io.instruction := execute_stage_1.io.next_instruction
