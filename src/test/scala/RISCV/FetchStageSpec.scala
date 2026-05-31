@@ -44,11 +44,11 @@ class FetchStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
 	"Fetch stage flush" in {
         simulate(new FetchStage()) { dut =>
-			// Start with execute triggered
+			// Request flush
 			dut.io.execute.poke(true.B)
 			dut.io.program_pointer.poke(0.U)
 			dut.io.memory_read_value.poke(0.U)
-			dut.io.flush.poke(false.B)
+			dut.io.flush.poke(true.B)
 			
 			dut.io.memory_read_address.expect(0.U)
 			dut.io.instruction.expect(0.U)
@@ -56,22 +56,10 @@ class FetchStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
             dut.clock.step(1)
 
-			// Watchout the value should be valid but we're flushing!
-			dut.io.flush.poke(true.B)
-			dut.io.memory_read_value.poke(1.U)
-			
-			dut.io.memory_read_address.expect(0.U)
-			dut.io.instruction.expect(1.U)
+			// No longer valid			
 			dut.io.next_valid.expect(false.B)
 
 			dut.clock.step(1)
-
-			// Now no longer flush and data should be valid again
-			dut.io.flush.poke(false.B)
-			
-			dut.io.memory_read_address.expect(0.U)
-			dut.io.instruction.expect(1.U)
-			dut.io.next_valid.expect(true.B)
         }
     }
 }

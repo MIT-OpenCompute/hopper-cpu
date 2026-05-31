@@ -44,16 +44,14 @@ class DecodeStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
 	"Decode stage flush" in {
         simulate(new DecodeStage()) { dut =>
-			// Start with value to decode
+			// Request Flush
 			dut.io.instruction.poke(0x06400093L.U) // addi x1, x0, 100
 			dut.io.valid.poke(true.B)
-			dut.io.flush.poke(false.B)
+			dut.io.flush.poke(true.B)
 
             dut.clock.step(1)
 
-			// Watchout the value should be valid but we're flushing!
-			dut.io.flush.poke(true.B)
-			
+			// Value is no longer valid			
 			dut.io.next_valid.expect(false.B)
         }
     }
