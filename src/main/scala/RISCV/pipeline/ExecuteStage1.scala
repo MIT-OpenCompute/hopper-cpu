@@ -34,17 +34,126 @@ class ExecuteStage1() extends Module {
 
 	when(io.valid) {
 		switch(io.instruction.opcode) {
-			is("b000_0010011".U) { // ADDI
-				out := io.rs1 + io.instruction.immediate;
+			// LUI
+			is("b0110111".U) {
+				out := io.instruction.immediate;				
+			}
 
-				// TODO: Temporary test
-				// io.program_pointer_jump_flush := true.B
-				// io.program_pointer_target := 0.U
+			// AUIPC
+			is("b0010111".U) {
+				out := io.instruction_pointer + io.instruction.immediate;				
+			}
+
+			// SLTI
+			is("b010_0010011".U) {
+				when(io.rs1.asSInt < io.instruction.immediate.asSInt) {
+					out := 1.U;
+				}.otherwise {
+					out := 0.U;
+				}
+			}
+
+			// SLTIU
+			is("b011_0010011".U) {
+				when(io.rs1 < io.instruction.immediate) {
+					out := 1.U;
+				}.otherwise {
+					out := 0.U;
+				}
+			}
+
+			// XORI
+			is("b100_0010011".U) {
+				out := io.rs1 ^ io.instruction.immediate
+			}
+
+			// XORI
+			is("b110_0010011".U) {
+				out := io.rs1 | io.instruction.immediate
+			}
+
+			// ANDI
+			is("b111_0010011".U) {
+				out := io.rs1 & io.instruction.immediate
+			}
+
+			// ADD
+			is("b0000000_000_0110011".U) {
+				out := io.rs1 + io.rs2
+			}
+
+			// SUB
+			is("b0110000_000_0110011".U) {
+				out := io.rs1 - io.rs2
+			}
+
+			// SLLI
+			is("b001_0010011".U) {
+				out := io.rs1 << io.instruction.immediate(5, 0)
+			}
+
+			// SRLI and SRAI
+			is("b101_0010011".U) {
+				when(io.instruction.immediate(10) === 1.U) { // SRAI
+					out := (io.rs1.asSInt >> io.instruction.immediate(5, 0)).asUInt
+				}.otherwise { // SLAI
+					out := io.rs1 >> io.instruction.immediate(5, 0)
+				}
+			}
+
+			// SLL
+			is("b001_0110011".U) {
+				out := io.rs1 << io.rs2(5, 0)
+			}
+
+			// SRL and SRA
+			is("b101_0110011".U) {
+				when(io.instruction.immediate(10) === 1.U) { // SRA
+					out := (io.rs1.asSInt >> io.rs2(5, 0)).asUInt
+				}.otherwise { // SLA
+					out := io.rs1 >> io.rs2(5, 0)
+				}
+			}
+
+			// SLT
+			is("b010_0110011".U) {
+				when(io.rs1.asSInt < io.rs2.asSInt) {
+					out := 1.U;
+				}.otherwise {
+					out := 0.U;
+				}
+			}
+
+			// SLTU
+			is("b011_0110011".U) {
+				when(io.rs1 < io.rs2) {
+					out := 1.U;
+				}.otherwise {
+					out := 0.U;
+				}
+			}
+
+			// XOR
+			is("b100_0110011".U) {
+				out := io.rs1 ^ io.rs2
+			}
+
+			// OR
+			is("b110_0110011".U) {
+				out := io.rs1 | io.rs2
+			}
+
+			// AND
+			is("b111_0110011".U) {
+				out := io.rs1 | io.rs2
 			}
 		}
 	}
 
 	// TODO: trigger flush when JAL or JALR or any jump
+
+	// io.program_pointer_jump_flush := true.B
+	// io.program_pointer_target := 0.U
 
 	val valid = RegInit(false.B)
 	valid := io.valid
