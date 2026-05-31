@@ -11,36 +11,67 @@ import chisel3.simulator.PeekPokeAPI.TestableRecord
 import scala.io.Source
 
 class FetchStageSpec extends AnyFreeSpec with Matchers with ChiselSim {
-    "Fetch Stage should halt correctly" in {
+    "Fetch stage valid and fetch" in {
         simulate(new FetchStage()) { dut =>
-			// The fetch stage halts when waiting for execute to be true form the core
-			// Additionally, there should be no valid result yet
+			// Execute is not set yet, so the data should not be valid
 			dut.io.execute.poke(false.B)
 			dut.io.program_pointer.poke(0.U)
 			dut.io.memory_read_value.poke(0.U)
-			dut.io.next_halting.poke(false.B)
+			dut.io.flush.poke(false.B)
 			
+			dut.io.memory_read_address.expect(0.U)
 			dut.io.instruction.expect(0.U)
 			dut.io.next_valid.expect(false.B)
-			dut.io.halting.expect(true.B)
 
             dut.clock.step(1)
 
-			// Now we execute, the stage is no longer halting, but no valid value yet
-			// We also are passing in 1 as the read memory value
+			// Now we trigger execute and pass in a data value
 			dut.io.execute.poke(true.B)
 			dut.io.memory_read_value.poke(1.U)
 			
+			dut.io.memory_read_address.expect(0.U)
 			dut.io.instruction.expect(1.U)
 			dut.io.next_valid.expect(false.B)
-			dut.io.halting.expect(false.B)
 
 			dut.clock.step(1)
 
 			// Now value should be valid
+			dut.io.memory_read_address.expect(0.U)
 			dut.io.instruction.expect(1.U)
 			dut.io.next_valid.expect(true.B)
-			dut.io.halting.expect(false.B)
+        }
+    }
+
+	"Fetch stage flush" in {
+        simulate(new FetchStage()) { dut =>
+			// Start with execute triggered
+			dut.io.execute.poke(true.B)
+			dut.io.program_pointer.poke(0.U)
+			dut.io.memory_read_value.poke(0.U)
+			dut.io.flush.poke(false.B)
+			
+			dut.io.memory_read_address.expect(0.U)
+			dut.io.instruction.expect(0.U)
+			dut.io.next_valid.expect(false.B)
+
+            dut.clock.step(1)
+
+			// Watchout the value should be valid but we're flushing!
+			dut.io.flush.poke(true.B)
+			dut.io.memory_read_value.poke(1.U)
+			
+			dut.io.memory_read_address.expect(0.U)
+			dut.io.instruction.expect(1.U)
+			dut.io.next_valid.expect(false.B)
+
+			dut.clock.step(1)
+
+			// Now no longer flush and data should be valid again
+			dut.io.flush.poke(false.B)
+			
+			dut.io.memory_read_address.expect(0.U)
+			dut.io.instruction.expect(1.U)
+			dut.io.next_valid.expect(true.B)
         }
     }
 }

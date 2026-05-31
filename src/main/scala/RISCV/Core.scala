@@ -39,15 +39,13 @@ class Core() extends Module {
 	fetch_stage.io.execute := io.execute
 	fetch_stage.io.program_pointer := program_pointer
 	fetch_stage.io.memory_read_value := memory.io.read_value_1
-	fetch_stage.io.next_halting := false.B
+	fetch_stage.io.flush := false.B
 
-	when(!fetch_stage.io.halting) {
-		program_pointer := program_pointer + 4.U
-	}
+	program_pointer := program_pointer + 4.U
 	
 	memory.io.address_1 := fetch_stage.io.memory_read_address
 	
-	val decode_stage = Module(new DecoderStage())
+	val decode_stage = Module(new DecodeStage())
 	decode_stage.io.instruction := fetch_stage.io.instruction
 	decode_stage.io.valid := fetch_stage.io.next_valid
 

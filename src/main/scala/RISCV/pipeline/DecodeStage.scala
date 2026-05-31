@@ -14,13 +14,15 @@ class InstructionBundle extends Bundle {
 	val func7 = UInt(7.W)
 }
 
-class DecoderStage() extends Module {
+class DecodeStage() extends Module {
     val io = IO(new Bundle {
 		val instruction = Input(UInt(32.W))
 		val valid = Input(Bool())
 
 		val decoded = Output(new InstructionBundle())
 		val next_valid = Output(Bool())
+		
+		val flush = Input(Bool())
     })
 
 	val decoder = Module(new Decoder())
@@ -51,5 +53,5 @@ class DecoderStage() extends Module {
 
 	val valid = RegInit(false.B)
 	valid := io.valid
-	io.next_valid := valid
+	io.next_valid := valid && !io.flush
 }
