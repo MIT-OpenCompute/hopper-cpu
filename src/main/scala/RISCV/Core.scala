@@ -59,7 +59,7 @@ class Core() extends Module {
 	read_stage.io.register_value_a := registers.io.out_a
 	read_stage.io.register_value_b := registers.io.out_b
 	read_stage.io.valid := decode_stage.io.next_valid
-	read_stage.io.next_halting := false.B
+	read_stage.io.flush := false.B
 
 	registers.io.read_address_a := read_stage.io.register_read_a
     registers.io.read_address_b := read_stage.io.register_read_b

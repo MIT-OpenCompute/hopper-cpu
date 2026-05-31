@@ -16,8 +16,8 @@ class ReadStage() extends Module {
 
 		val next_instruction = Output(new InstructionBundle())
 		val next_valid = Output(Bool())
-		val halting = Output(Bool())
-		val next_halting = Input(Bool())
+
+		val flush = Input(Bool())
 
 		val out_a = Output(UInt(32.W))
 		val out_b = Output(UInt(32.W))
@@ -28,11 +28,6 @@ class ReadStage() extends Module {
 
 	rd_0 := io.instruction.rd
 	rd_1 := rd_0
-
-	// val halt = io.next_halting && ()
-	val halt = io.next_halting
-
-	io.halting := halt
 	
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
 	instruction := io.instruction
@@ -51,5 +46,5 @@ class ReadStage() extends Module {
 
 	val valid = RegInit(false.B)
 	valid := io.valid
-	io.next_valid := valid
+	io.next_valid := valid && !io.flush
 }
