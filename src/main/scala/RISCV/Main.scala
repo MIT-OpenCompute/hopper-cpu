@@ -68,10 +68,10 @@ class Main() extends Module {
     memory.io.address_1 := 0.U
     memory.io.write_value_1 := 0.U
 
-    memory.io.write_2 := false.B
-    memory.io.read_2 := false.B
-    memory.io.address_2 := 0.U
-    memory.io.write_value_2 := 0.U
+    // memory.io.write_2 := false.B
+    // memory.io.read_2 := false.B
+    // memory.io.address_2 := 0.U
+    // memory.io.write_value_2 := 0.U
 
 
 
@@ -107,7 +107,7 @@ class Main() extends Module {
         when(stage =/= 0.U) {
             printf("Program Pointer: %d\n", program_pointer);
             printf("Data 1: %b\n", memory.io.read_value_1);
-            printf("Data 2: %b\n", memory.io.read_value_2);
+            // printf("Data 2: %b\n", memory.io.read_value_2);
             printf("Register 1: %b\n", registers.io.debug_1);
             printf("Register 2: %b\n", registers.io.debug_2);
             printf("Register 3: %b\n", registers.io.debug_3);
@@ -160,8 +160,8 @@ class Main() extends Module {
                     program_pointer := pc_plus_4;
                     memory.io.read_1 := true.B
                     memory.io.address_1 := (addr) / 4.U;
-                    memory.io.read_2 := true.B
-                    memory.io.address_2 := (addr) / 4.U + 1.U;
+                    // memory.io.read_2 := true.B
+                    // memory.io.address_2 := (addr) / 4.U + 1.U;
 
                 }
                 //Store
@@ -170,8 +170,8 @@ class Main() extends Module {
                     program_pointer := pc_plus_4;
                     memory.io.read_1 := true.B
                     memory.io.address_1 := (addr) / 4.U;
-                    memory.io.read_2 := true.B
-                    memory.io.address_2 := (addr) / 4.U + 1.U;
+                    // memory.io.read_2 := true.B
+                    // memory.io.address_2 := (addr) / 4.U + 1.U;
 
                 }
                 //ALU Imm,Reg
@@ -290,7 +290,7 @@ class Main() extends Module {
                     registers.io.write_address := rd_buffer
                     registers.io.write_enable := true.B
 
-                    val raw_data = (memory.io.read_value_1 >> shift_amount | memory.io.read_value_2 << (32.U - shift_amount))
+                    val raw_data = (memory.io.read_value_1 >> shift_amount)
 
                     switch(funct3_buffer){
                         //LB
@@ -321,11 +321,11 @@ class Main() extends Module {
 
                     memory.io.write_1 := true.B
                     memory.io.address_1 := addr / 4.U
-                    memory.io.write_2 := true.B
-                    memory.io.address_2 := addr / 4.U + 1.U
+                    // memory.io.write_2 := true.B
+                    // memory.io.address_2 := addr / 4.U + 1.U
 
                     val value_1 = WireDefault(memory.io.read_value_1)
-                    val value_2 = WireDefault(memory.io.read_value_2)
+                    // val value_2 = WireDefault(memory.io.read_value_2)
 
                     switch(funct3_buffer){
                         is("b000".U) { // SB
@@ -343,7 +343,7 @@ class Main() extends Module {
                                 is(2.U) { value_1 := Cat(out_b_buffer(15, 0), memory.io.read_value_1(15, 0)) }
                                 is(3.U) {
                                     value_1 := Cat(out_b_buffer(7, 0), memory.io.read_value_1(23, 0))
-                                    value_2 := Cat(memory.io.read_value_2(31, 8), out_b_buffer(15, 8))
+                                    // value_2 := Cat(memory.io.read_value_2(31, 8), out_b_buffer(15, 8))
                                 }
                             }
                         }
@@ -352,21 +352,21 @@ class Main() extends Module {
                                 is(0.U) { value_1 := out_b_buffer }
                                 is(1.U) {
                                     value_1 := Cat(out_b_buffer(23, 0), memory.io.read_value_1(7, 0))
-                                    value_2 := Cat(memory.io.read_value_2(31, 8), out_b_buffer(31, 24))
+                                    // value_2 := Cat(memory.io.read_value_2(31, 8), out_b_buffer(31, 24))
                                 }
                                 is(2.U) {
                                     value_1 := Cat(out_b_buffer(15, 0), memory.io.read_value_1(15, 0))
-                                    value_2 := Cat(memory.io.read_value_2(31, 16), out_b_buffer(31, 16))
+                                    // value_2 := Cat(memory.io.read_value_2(31, 16), out_b_buffer(31, 16))
                                 }
                                 is(3.U) {
                                     value_1 := Cat(out_b_buffer(7, 0), memory.io.read_value_1(23, 0))
-                                    value_2 := Cat(memory.io.read_value_2(31, 24), out_b_buffer(31, 8))
+                                    // value_2 := Cat(memory.io.read_value_2(31, 24), out_b_buffer(31, 8))
                                 }
                             }
                         }
                     }
                     memory.io.write_value_1 := value_1
-                    memory.io.write_value_2 := value_2
+                    // memory.io.write_value_2 := value_2
 
                 }
             }

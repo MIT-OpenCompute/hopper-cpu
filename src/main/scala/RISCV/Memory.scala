@@ -12,12 +12,7 @@ class Memory() extends Module {
         val read_1 = Input(Bool())
         val read_value_1 = Output(UInt(32.W))
 
-        val address_2 = Input(UInt(32.W))
-        val write_2 = Input(Bool())
-        val write_value_2 = Input(UInt(32.W))
-        val read_2 = Input(Bool())
-        val read_value_2 = Output(UInt(32.W))
-
+ 
         val address_vga = Output(UInt(32.W))
         val write_vga = Output(Bool())
         val write_value_vga = Output(UInt(32.W))
@@ -26,13 +21,15 @@ class Memory() extends Module {
     })
 
     val memory = SyncReadMem(1024, UInt(32.W))
-    loadMemoryFromFileInline(memory, "program.hex")
+    loadMemoryFromFileInline(memory, "program.hex")nt(32.W))
+        val write_vga = Output(Bool())
+        val write_value_vga = Output
 
     io.address_vga := 0.U
     io.write_vga := true.B
     io.write_value_vga := 0.U
     io.read_value_1 := 0.U
-    io.read_value_2 := 0.U
+
 
     val isVGA = io.address_1 >= 0b1000000000000.U;
     io.address_vga := Mux(isVGA, io.address_1 / 0b1000000000000.U - 1.U, 0.U);
@@ -62,12 +59,7 @@ class Memory() extends Module {
       io.write_1
     )
 
-    io.read_value_2 := memory.readWrite(
-      io.address_2,
-      io.write_value_2,
-      (io.read_2 || io.write_2) && !isVGA,
-      io.write_2
-    )
+
 
     val is_btns = RegInit(false.B)
     is_btns := io.read_1 && io.address_1 === 0x12c00000.U // 0x4B000000
