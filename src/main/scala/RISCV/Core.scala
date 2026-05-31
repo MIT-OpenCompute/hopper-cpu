@@ -39,6 +39,11 @@ class Core() extends Module {
 	fetch_stage.io.execute := io.execute
 	fetch_stage.io.program_pointer := program_pointer
 	fetch_stage.io.memory_read_value := memory.io.read_value_1
+	fetch_stage.io.next_halting := false.B
+
+	when(!fetch_stage.io.halting) {
+		program_pointer := program_pointer + 4.U
+	}
 	
 	memory.io.address_1 := fetch_stage.io.memory_read_address
 	
@@ -51,6 +56,7 @@ class Core() extends Module {
 	read_stage.io.register_value_a := registers.io.out_a
 	read_stage.io.register_value_b := registers.io.out_b
 	read_stage.io.valid := decode_stage.io.next_valid
+	read_stage.io.next_halting := false.B
 
 	registers.io.read_address_a := read_stage.io.register_read_a
     registers.io.read_address_b := read_stage.io.register_read_b
@@ -71,8 +77,6 @@ class Core() extends Module {
 	registers.io.in := write_stage.io.register_value
 
 	when(io.execute) {
-		program_pointer := program_pointer + 4.U
-
 		printf("\n\n\n=== Fetch ===\n");
 		printf("Program Pointer: %d\n", program_pointer);
 		printf("Data: %b\n", fetch_stage.io.instruction);

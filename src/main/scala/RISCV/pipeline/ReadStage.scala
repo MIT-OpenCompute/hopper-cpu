@@ -15,10 +15,24 @@ class ReadStage() extends Module {
 		val register_value_b = Input(UInt(32.W))
 
 		val next_instruction = Output(new InstructionBundle())
+		val next_valid = Output(Bool())
+		val halting = Output(Bool())
+		val next_halting = Input(Bool())
+
 		val out_a = Output(UInt(32.W))
 		val out_b = Output(UInt(32.W))
-		val next_valid = Output(Bool())
     })
+
+	val rd_0 = RegInit(0.U(5.W))
+	val rd_1 = RegInit(0.U(5.W))
+
+	rd_0 := io.instruction.rd
+	rd_1 := rd_0
+
+	// val halt = io.next_halting && ()
+	val halt = io.next_halting
+
+	io.halting := halt
 	
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
 	instruction := io.instruction

@@ -13,10 +13,14 @@ class FetchStage() extends Module {
 		val memory_read_address = Output(UInt(32.W))
 		val instruction = Output(UInt(32.W))
 		val next_valid = Output(Bool())
+		val halting = Output(Bool())
+		val next_halting = Input(Bool())
     })
 
 	io.memory_read_address := io.program_pointer
 	io.instruction := io.memory_read_value
+
+	io.halting := io.next_halting || !io.execute
 
 	val valid = RegInit(false.B)
 	valid := io.execute
