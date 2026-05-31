@@ -21,6 +21,9 @@ class ReadStage() extends Module {
 
 		val flush = Input(Bool())
 
+		val raw_hazard_flush = Output(Bool())
+		val program_pointer_target = Output(UInt(32.W))
+
 		val out_a = Output(UInt(32.W))
 		val out_b = Output(UInt(32.W))
     })
@@ -28,8 +31,21 @@ class ReadStage() extends Module {
 	val rd_0 = RegInit(0.U(5.W))
 	val rd_1 = RegInit(0.U(5.W))
 
-	rd_0 := io.instruction.rd
+	rd_0 := 0.U
+
+	when(io.valid) {
+		rd_0 := io.instruction.rd
+	}
+
 	rd_1 := rd_0
+
+	val raw_hazard_flush = io.valid && ((rd_0 =/= 0.U && (rd_0 === io.instruction.rs1 || rd_0 === io.instruction.rs2)) || (rd_1 =/= 0.U && (rd_1 === io.instruction.rs1 || rd_1 === io.instruction.rs2)))
+	io.raw_hazard_flush := raw_hazard_flush
+	io.program_pointer_target := 0.U
+
+	when(raw_hazard_flush) {
+		io.program_pointer_target := io.instruction_pointer
+	}
 	
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
 	instruction := io.instruction

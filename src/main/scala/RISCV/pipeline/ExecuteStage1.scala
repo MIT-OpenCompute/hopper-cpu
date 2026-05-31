@@ -25,18 +25,21 @@ class ExecuteStage1() extends Module {
 	instruction := io.instruction
 	io.next_instruction := instruction
 
-	io.out := 0.U
+	val out = RegInit(0.U)
+	out := 0.U
+	io.out := out
+
 	io.program_pointer_jump_flush := false.B
 	io.program_pointer_target := 0.U
 
 	when(io.valid) {
 		switch(io.instruction.opcode) {
 			is("b000_0010011".U) { // ADDI
-				io.out := io.rs1 + io.instruction.immediate;
+				out := io.rs1 + io.instruction.immediate;
 
 				// TODO: Temporary test
-				io.program_pointer_jump_flush := true.B
-				io.program_pointer_target := 0.U
+				// io.program_pointer_jump_flush := true.B
+				// io.program_pointer_target := 0.U
 			}
 		}
 	}

@@ -72,15 +72,19 @@ class Core() extends Module {
 	execute_stage_1.io.instruction_pointer := read_stage.io.next_instruction_pointer
 	execute_stage_1.io.valid := read_stage.io.next_valid
 
-	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush
-	decode_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush
-	read_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush
+	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush
+	decode_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush
+	read_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush
 
 	when(io.execute) {
 		when(execute_stage_1.io.program_pointer_jump_flush) {
 			program_pointer := execute_stage_1.io.program_pointer_target
 		}.otherwise {
-			program_pointer := program_pointer + 4.U
+			when(read_stage.io.raw_hazard_flush) {
+				program_pointer := read_stage.io.program_pointer_target
+			}.otherwise {
+				program_pointer := program_pointer + 4.U
+			}
 		}
 	}
 
@@ -112,14 +116,18 @@ class Core() extends Module {
 		printf("Valid: %b\n", decode_stage.io.next_valid);
 
 		printf("=== Read ===\n");
+		printf("Immediate: %b\n", read_stage.io.next_instruction.immediate);
 		printf("A: %b\n", read_stage.io.out_a);
 		printf("B: %b\n", read_stage.io.out_b);
 		printf("Valid: %b\n", read_stage.io.next_valid);
+		printf("RAW Flush Requested: %b\n", read_stage.io.raw_hazard_flush);
+		printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
 
 		printf("=== Execute 1 ===\n");
+		printf("Immediate: %b\n", execute_stage_1.io.next_instruction.immediate);
 		printf("Out: %b\n", execute_stage_1.io.out);
 		printf("Valid: %b\n", execute_stage_1.io.next_valid);
-		printf("Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
+		printf("Jump Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
 		printf("Jump Target: %d\n", execute_stage_1.io.program_pointer_target);
 
 		printf("=== Write ===\n");
