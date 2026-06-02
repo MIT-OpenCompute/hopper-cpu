@@ -134,6 +134,8 @@ class Core() extends Module {
 		printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
 
 		printf("=== Execute 1 ===\n");
+		printf("Opcode: %b\n", execute_stage_1.io.instruction.opcode);
+		printf("Func3: %b\n", execute_stage_1.io.instruction.func3);
 		printf("Out: %b\n", execute_stage_1.io.out);
 		printf("Valid: %b\n", execute_stage_1.io.next_valid);
 		printf("Read: %b\n", execute_stage_1.io.memory_read);
