@@ -28,10 +28,9 @@ class Core() extends Module {
 	memory.io.write_1 := false.B
 	memory.io.write_value_1 := 0.U
 
-	memory.io.address_2 := 0.U
+	memory.io.read_2 := true.B
 	memory.io.write_2 := 0.U
 	memory.io.write_value_2 := 0.U
-	memory.io.read_2 := 0.U
 
 	memory.io.btns := 0.U
 
@@ -88,14 +87,26 @@ class Core() extends Module {
 		}
 	}
 
+	memory.io.address_2 := execute_stage_1.io.memory_read_address
+
 	// ==== EXECUTE 2 ====
+
+	val execute_stage_2 = Module(new ExecuteStage2())
+	execute_stage_2.io.instruction := execute_stage_1.io.next_instruction
+	execute_stage_2.io.rs1 := execute_stage_1.io.next_rs1
+	execute_stage_2.io.rs2 := execute_stage_1.io.next_rs2
+	execute_stage_2.io.instruction_pointer := execute_stage_1.io.next_instruction_pointer
+	execute_stage_2.io.valid := execute_stage_1.io.next_valid
+	execute_stage_2.io.previous_out := execute_stage_1.io.out
+
+	execute_stage_2.io.memory_read_value := memory.io.read_value_2
 
 	// ==== WRITE ====
 
 	val write_stage = Module(new WriteStage())
-	write_stage.io.instruction := execute_stage_1.io.next_instruction
-	write_stage.io.value := execute_stage_1.io.out
-	write_stage.io.valid := execute_stage_1.io.next_valid
+	write_stage.io.instruction := execute_stage_2.io.next_instruction
+	write_stage.io.value := execute_stage_2.io.out
+	write_stage.io.valid := execute_stage_2.io.next_valid
 
 	registers.io.write_enable := write_stage.io.register_write
 	registers.io.write_address := write_stage.io.register_address
@@ -116,7 +127,6 @@ class Core() extends Module {
 		printf("Valid: %b\n", decode_stage.io.next_valid);
 
 		printf("=== Read ===\n");
-		printf("Immediate: %b\n", read_stage.io.next_instruction.immediate);
 		printf("A: %b\n", read_stage.io.out_a);
 		printf("B: %b\n", read_stage.io.out_b);
 		printf("Valid: %b\n", read_stage.io.next_valid);
@@ -124,11 +134,17 @@ class Core() extends Module {
 		printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
 
 		printf("=== Execute 1 ===\n");
-		printf("Immediate: %b\n", execute_stage_1.io.next_instruction.immediate);
 		printf("Out: %b\n", execute_stage_1.io.out);
 		printf("Valid: %b\n", execute_stage_1.io.next_valid);
+		printf("Read: %b\n", execute_stage_1.io.memory_read);
+		printf("Read Adress: %b\n", execute_stage_1.io.memory_read_address);
 		printf("Jump Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
 		printf("Jump Target: %d\n", execute_stage_1.io.program_pointer_target);
+
+		printf("=== Execute 2 ===\n");
+		printf("Read Value: %b\n", memory.io.read_value_2);
+		printf("Out: %b\n", execute_stage_2.io.out);
+		printf("Valid: %b\n", execute_stage_2.io.next_valid);
 
 		printf("=== Write ===\n");
 		printf("Write: %b\n", write_stage.io.register_write);

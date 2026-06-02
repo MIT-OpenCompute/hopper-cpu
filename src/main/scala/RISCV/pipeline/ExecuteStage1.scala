@@ -14,16 +14,34 @@ class ExecuteStage1() extends Module {
 		val valid = Input(Bool())
 
 		val next_instruction = Output(new InstructionBundle())
+		val next_instruction_pointer = Output(UInt(32.W))
+		val next_rs1 = Output(UInt(32.W))
+		val next_rs2 = Output(UInt(32.W))
 		val out = Output(UInt(32.W))
 		val next_valid = Output(Bool())
 
 		val program_pointer_jump_flush = Output(Bool())
 		val program_pointer_target = Output(UInt(32.W))
+
+		val memory_read = Output(Bool())
+		val memory_read_address = Output(UInt(32.W))
     })
 
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
 	instruction := io.instruction
 	io.next_instruction := instruction
+
+	val next_instruction_pointer = RegInit(0.U(32.W))
+	next_instruction_pointer := io.instruction_pointer
+	io.next_instruction_pointer := next_instruction_pointer
+
+	val rs1 = RegInit(0.U(32.W))
+	rs1 := io.rs1
+	io.next_rs1 := rs1
+
+	val rs2 = RegInit(0.U(32.W))
+	rs2 := io.rs2
+	io.next_rs2 := rs2
 
 	val out = RegInit(0.U)
 	out := 0.U
@@ -31,6 +49,9 @@ class ExecuteStage1() extends Module {
 
 	io.program_pointer_jump_flush := false.B
 	io.program_pointer_target := 0.U
+
+	io.memory_read := false.B
+	io.memory_read_address := 0.U
 
 	when(io.valid) {
 		switch(io.instruction.opcode) {
@@ -67,7 +88,7 @@ class ExecuteStage1() extends Module {
 				out := io.rs1 ^ io.instruction.immediate
 			}
 
-			// XORI
+			// ORI
 			is("b110_0010011".U) {
 				out := io.rs1 | io.instruction.immediate
 			}
@@ -150,66 +171,72 @@ class ExecuteStage1() extends Module {
 
 			// JAL
 			is("b1101111".U) {
-				out := instruction_pointer + 4.U
+				out := io.instruction_pointer + 4.U
 
 				io.program_pointer_jump_flush := true.B
-				io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+				io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
 			}
 
 			// JALR
 			is("b000_1100111".U) {
-				out := instruction_pointer + 4.U
+				out := io.instruction_pointer + 4.U
 
 				io.program_pointer_jump_flush := true.B
-				io.program_pointer_target := (io.rs1 + io.instruction.immediate.asSInt).asUInt & 0xFFFFFFFEL.U
+				io.program_pointer_target := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt & 0xFFFFFFFEL.U
 			}
 
 			// BEQ
-			is("b000_110011".U) {
+			is("b000_1100011".U) {
 				when(io.rs1 === io.rs2) {
 					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
 				}
 			}
 
 			// BNEQ
-			is("b001_110011".U) {
+			is("b001_1100011".U) {
 				when(io.rs1 =/= io.rs2) {
 					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
 				}
 			}
 
 			// BLT
-			is("b100_110011".U) {
+			is("b100_1100011".U) {
 				when(io.rs1.asSInt < io.rs2.asSInt) {
 					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
 				}
 			}
 
 			// BLTU
-			is("b110_110011".U) {
+			is("b110_1100011".U) {
 				when(io.rs1 < io.rs2) {
 					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
 				}
 			}
 
 			// BGE
-			is("b101_110011".U) {
+			is("b101_1100011".U) {
 				when(io.rs1.asSInt >= io.rs2.asSInt) {
 					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
 				}
 			}
 
 			// BGEU
-			is("b111_110011".U) {
+			is("b111_1100011".U) {
 				when(io.rs1 >= io.rs2) {
 					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (instruction_pointer + io.instruction.immediate.asSInt).asUInt
+					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
 				}
+			}
+
+			// LW
+			is("b010_0000011".U) {
+				io.memory_read := true.B
+				io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
 			}
 		}
 	}

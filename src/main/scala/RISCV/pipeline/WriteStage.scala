@@ -23,7 +23,57 @@ class WriteStage() extends Module {
 
 	when(io.valid) {
 		switch(io.instruction.opcode) {
-			is("b000_0010011".U) {
+			// LUI
+			is("b0110111".U) {
+				io.register_write := true.B;
+				io.register_address := io.instruction.rd;
+				io.register_value := io.value;
+			}
+
+			// AUIPC
+			is("b0010111".U) {
+				io.register_write := true.B;
+				io.register_address := io.instruction.rd;
+				io.register_value := io.value;
+			}
+
+			// SLTI, SLTIU, SLLI, SRLI, SRAI, XORI, ORI, ANDI
+			is("0010011".U) {
+				io.register_write := true.B;
+				io.register_address := io.instruction.rd;
+				io.register_value := io.value;
+			}
+
+			// ADD, SUB
+			is("0110011".U) {
+				io.register_write := true.B;
+				io.register_address := io.instruction.rd;
+				io.register_value := io.value;
+			}
+
+			// SLL, SRL, SRA, SLT, SLTU, XOR, OR, AND
+			is("b0110011".U) {
+				io.register_write := true.B;
+				io.register_address := io.instruction.rd;
+				io.register_value := io.value;
+			}
+
+			// JAL
+			is("b1101111".U) {
+				io.register_write := true.B;
+				io.register_address := io.instruction.rd;
+				io.register_value := io.value;
+			}
+
+			// JALR
+			is("b1100111".U) {
+				io.register_write := true.B;
+				io.register_address := io.instruction.rd;
+				io.register_value := io.value;
+			}
+
+			// LW
+			is("0000011".U) {
 				io.register_write := true.B;
 				io.register_address := io.instruction.rd;
 				io.register_value := io.value;
