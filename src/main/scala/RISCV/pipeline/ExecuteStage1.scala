@@ -20,7 +20,10 @@ class ExecuteStage1() extends Module {
 		val out = Output(UInt(32.W))
 		val next_valid = Output(Bool())
 
+		val flush = Input(Bool())
+
 		val program_pointer_jump_flush = Output(Bool())
+		val memory_use_flush = Output(Bool())
 		val program_pointer_target = Output(UInt(32.W))
 
 		val memory_read = Output(Bool())
@@ -52,6 +55,11 @@ class ExecuteStage1() extends Module {
 
 	io.memory_read := false.B
 	io.memory_read_address := 0.U
+
+	val interacting_with_memory = RegInit(false.B)
+	interacting_with_memory := false.B
+
+	io.memory_use_flush := false.B
 
 	when(io.valid) {
 		switch(io.instruction.opcode) {
@@ -249,12 +257,37 @@ class ExecuteStage1() extends Module {
 					}
 				}
 			}
+
 			is("b0000011".U) {
-				switch(io.instruction.func3) {
-					// LW
-					is("b010".U) {
-						io.memory_read := true.B
-						io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+				when(interacting_with_memory) {
+					io.memory_use_flush := true.B
+					io.program_pointer_target := io.instruction_pointer
+				}.otherwise {
+					switch(io.instruction.func3) {
+						// LW
+						is("b010".U) {
+							io.memory_read := true.B
+							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+
+							interacting_with_memory := true.B
+						}
+					}
+				}
+			}
+
+			is("b0100011".U) {
+				when(interacting_with_memory) {
+					io.memory_use_flush := true.B
+					io.program_pointer_target := io.instruction_pointer
+				}.otherwise {
+					switch(io.instruction.func3) {
+						// SW
+						is("b010".U) {
+							io.memory_read := true.B
+							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+
+							interacting_with_memory := true.B
+						}
 					}
 				}
 			}
@@ -262,6 +295,6 @@ class ExecuteStage1() extends Module {
 	}
 
 	val valid = RegInit(false.B)
-	valid := io.valid
+	valid := io.valid && !io.flush
 	io.next_valid := valid
 }

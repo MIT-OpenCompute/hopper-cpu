@@ -28,10 +28,6 @@ class Core() extends Module {
 	memory.io.write_1 := false.B
 	memory.io.write_value_1 := 0.U
 
-	memory.io.read_2 := true.B
-	memory.io.write_2 := 0.U
-	memory.io.write_value_2 := 0.U
-
 	memory.io.btns := 0.U
 
 	// ==== FETCH ====
@@ -71,12 +67,13 @@ class Core() extends Module {
 	execute_stage_1.io.instruction_pointer := read_stage.io.next_instruction_pointer
 	execute_stage_1.io.valid := read_stage.io.next_valid
 
-	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush
-	decode_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush
-	read_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush
+	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
+	decode_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
+	read_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
+	execute_stage_1.io.flush := execute_stage_1.io.memory_use_flush
 
 	when(io.execute) {
-		when(execute_stage_1.io.program_pointer_jump_flush) {
+		when(execute_stage_1.io.program_pointer_jump_flush || execute_stage_1.io.memory_use_flush) {
 			program_pointer := execute_stage_1.io.program_pointer_target
 		}.otherwise {
 			when(read_stage.io.raw_hazard_flush) {
@@ -86,8 +83,6 @@ class Core() extends Module {
 			}
 		}
 	}
-
-	memory.io.address_2 := execute_stage_1.io.memory_read_address
 
 	// ==== EXECUTE 2 ====
 
@@ -100,6 +95,25 @@ class Core() extends Module {
 	execute_stage_2.io.previous_out := execute_stage_1.io.out
 
 	execute_stage_2.io.memory_read_value := memory.io.read_value_2
+
+	when(execute_stage_2.io.memory_write) {
+		memory.io.read_2 := false.B
+		memory.io.write_2 := true.B
+		memory.io.address_2 := execute_stage_2.io.memory_write_address
+		memory.io.write_value_2 := execute_stage_2.io.memory_write_value
+	}.otherwise {
+		when(execute_stage_1.io.memory_read) {
+			memory.io.read_2 := true.B
+			memory.io.write_2 := false.B
+			memory.io.address_2 := execute_stage_1.io.memory_read_address
+			memory.io.write_value_2 := 0.U
+		}.otherwise {
+			memory.io.read_2 := false.B
+			memory.io.write_2 := false.B
+			memory.io.address_2 := 0.U
+			memory.io.write_value_2 := 0.U
+		}
+	}
 
 	// ==== WRITE ====
 
@@ -134,17 +148,23 @@ class Core() extends Module {
 		printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
 
 		printf("=== Execute 1 ===\n");
-		// printf("Opcode: %b\n", execute_stage_1.io.instruction.opcode);
-		// printf("Func3: %b\n", execute_stage_1.io.instruction.func3);
+		printf("Opcode: %b\n", execute_stage_1.io.instruction.opcode);
+		printf("Func3: %b\n", execute_stage_1.io.instruction.func3);
 		printf("Out: %b\n", execute_stage_1.io.out);
 		printf("Valid: %b\n", execute_stage_1.io.next_valid);
 		printf("Read: %b\n", execute_stage_1.io.memory_read);
 		printf("Read Adress: %b\n", execute_stage_1.io.memory_read_address);
 		printf("Jump Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
+		printf("Memory Flush Requested: %b\n", execute_stage_1.io.memory_use_flush);
 		printf("Jump Target: %d\n", execute_stage_1.io.program_pointer_target);
 
 		printf("=== Execute 2 ===\n");
+		printf("Opcode: %b\n", execute_stage_2.io.instruction.opcode);
+		printf("Func3: %b\n", execute_stage_2.io.instruction.func3);
 		printf("Read Value: %b\n", memory.io.read_value_2);
+		printf("Write: %b\n", execute_stage_2.io.memory_write);
+		printf("Write Adress: %b\n", execute_stage_2.io.memory_write_address);
+		printf("Write Value: %b\n", execute_stage_2.io.memory_write_value);
 		printf("Out: %b\n", execute_stage_2.io.out);
 		printf("Valid: %b\n", execute_stage_2.io.next_valid);
 

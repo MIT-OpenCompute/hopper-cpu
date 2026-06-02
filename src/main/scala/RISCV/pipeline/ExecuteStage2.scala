@@ -21,6 +21,7 @@ class ExecuteStage2() extends Module {
 		val memory_read_value = Input(UInt(32.W))
 		val memory_write = Output(Bool())
 		val memory_write_address = Output(UInt(32.W))
+		val memory_write_value = Output(UInt(32.W))
     })
 
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
@@ -33,14 +34,26 @@ class ExecuteStage2() extends Module {
 
 	io.memory_write := false.B
 	io.memory_write_address := 0.U
+	io.memory_write_value := 0.U
 
 	when(io.valid) {
 		switch(io.instruction.opcode) {
-			// LW
 			is("b0000011".U) {
 				switch(io.instruction.func3) {
+					// LW
 					is("b010".U) {
 						out := io.memory_read_value
+					}
+				}
+			}
+
+			is("b0100011".U) {
+				switch(io.instruction.func3) {
+					// SW
+					is("b010".U) {
+						io.memory_write := true.B
+						io.memory_write_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+						io.memory_write_value := io.rs2
 					}
 				}
 			}
