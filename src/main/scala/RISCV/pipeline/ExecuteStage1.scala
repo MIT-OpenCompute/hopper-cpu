@@ -249,7 +249,7 @@ class ExecuteStage1() extends Module {
 					}
 				}
 			}
-			is("b010_0000011".U) {
+			is("b0000011".U) {
 				switch(io.instruction.func3) {
 					// LW
 					is("b010".U) {

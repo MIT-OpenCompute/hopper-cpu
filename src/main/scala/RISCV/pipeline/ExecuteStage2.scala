@@ -34,18 +34,18 @@ class ExecuteStage2() extends Module {
 	io.memory_write := false.B
 	io.memory_write_address := 0.U
 
-	// when(io.valid) {
-	// 	switch(io.instruction.opcode) {
-	// 		// LW
-	// 		is("b0000011".U) {
-	// 			switch(io.instruction.func3) {
-	// 				is("b010".U) {
-	// 					out := io.memory_read_value
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
+	when(io.valid) {
+		switch(io.instruction.opcode) {
+			// LW
+			is("b0000011".U) {
+				switch(io.instruction.func3) {
+					is("b010".U) {
+						out := io.memory_read_value
+					}
+				}
+			}
+		}
+	}
 
 	val valid = RegInit(false.B)
 	valid := io.valid

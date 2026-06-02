@@ -11,33 +11,9 @@ import chisel3.simulator.PeekPokeAPI.TestableRecord
 import scala.io.Source
 
 class CoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
-    "Core should execute program.hex correctly" in {
-        simulate(new Core()) { dut =>
-			val path = getClass.getResource("/program.hex").getPath
-            val lines = Source.fromFile(path).getLines().toList
-
-			dut.io.flash.poke(true.B)
-
-            lines.zipWithIndex.foreach { case (line, index) =>
-				val value = java.lang.Long.parseLong(line.trim, 16)
-
-				dut.io.flash_address.poke((index * 4).U)
-				dut.io.flash_value.poke(value.U)
-	            
-				dut.clock.step(1)
-			}	
-
-			dut.io.flash.poke(false.B)
-
-			dut.io.execute.poke(true.B)
-
-            dut.clock.step(16)
-        }
-    }
-
-	// "Core should execute memory.hex correctly" in {
+    // "Core should execute program.hex correctly" in {
     //     simulate(new Core()) { dut =>
-	// 		val path = getClass.getResource("/memory.hex").getPath
+	// 		val path = getClass.getResource("/program.hex").getPath
     //         val lines = Source.fromFile(path).getLines().toList
 
 	// 		dut.io.flash.poke(true.B)
@@ -55,7 +31,31 @@ class CoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
 	// 		dut.io.execute.poke(true.B)
 
-    //         dut.clock.step(8)
+    //         dut.clock.step(16)
     //     }
     // }
+
+	"Core should execute memory.hex correctly" in {
+        simulate(new Core()) { dut =>
+			val path = getClass.getResource("/memory.hex").getPath
+            val lines = Source.fromFile(path).getLines().toList
+
+			dut.io.flash.poke(true.B)
+
+            lines.zipWithIndex.foreach { case (line, index) =>
+				val value = java.lang.Long.parseLong(line.trim, 16)
+
+				dut.io.flash_address.poke((index * 4).U)
+				dut.io.flash_value.poke(value.U)
+	            
+				dut.clock.step(1)
+			}	
+
+			dut.io.flash.poke(false.B)
+
+			dut.io.execute.poke(true.B)
+
+            dut.clock.step(8)
+        }
+    }
 }
