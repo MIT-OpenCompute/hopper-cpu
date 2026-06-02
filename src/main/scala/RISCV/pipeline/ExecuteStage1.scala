@@ -43,7 +43,7 @@ class ExecuteStage1() extends Module {
 	rs2 := io.rs2
 	io.next_rs2 := rs2
 
-	val out = RegInit(0.U)
+	val out = RegInit(0.U(32.W))
 	out := 0.U
 	io.out := out
 
@@ -65,108 +65,124 @@ class ExecuteStage1() extends Module {
 				out := io.instruction_pointer + io.instruction.immediate;				
 			}
 
-			// SLTI
 			is("b010_0010011".U) {
-				when(io.rs1.asSInt < io.instruction.immediate.asSInt) {
-					out := 1.U;
-				}.otherwise {
-					out := 0.U;
+				switch(io.instruction.func3) {
+					// SLTI
+					is("b010".U) {
+						when(io.rs1.asSInt < io.instruction.immediate.asSInt) {
+							out := 1.U;
+						}.otherwise {
+							out := 0.U;
+						}
+					}
+
+					// SLTIU
+					is("b011".U) {
+						when(io.rs1 < io.instruction.immediate) {
+							out := 1.U;
+						}.otherwise {
+							out := 0.U;
+						}
+					}
+
+					// XORI
+					is("b100".U) {
+						out := io.rs1 ^ io.instruction.immediate
+					}
+
+					// ORI
+					is("b110".U) {
+						out := io.rs1 | io.instruction.immediate
+					}
+
+					// ANDI
+					is("b111".U) {
+						out := io.rs1 & io.instruction.immediate
+					}
 				}
 			}
 
-			// SLTIU
-			is("b011_0010011".U) {
-				when(io.rs1 < io.instruction.immediate) {
-					out := 1.U;
-				}.otherwise {
-					out := 0.U;
+			is("b0110011".U) {
+				switch(io.instruction.func7) {
+					// ADD
+					is("b0000000".U) {
+						out := io.rs1 + io.rs2
+					}
+
+					// SUB
+					is("b0110000".U) {
+						out := io.rs1 - io.rs2
+					}
 				}
 			}
 
-			// XORI
-			is("b100_0010011".U) {
-				out := io.rs1 ^ io.instruction.immediate
-			}
-
-			// ORI
-			is("b110_0010011".U) {
-				out := io.rs1 | io.instruction.immediate
-			}
-
-			// ANDI
-			is("b111_0010011".U) {
-				out := io.rs1 & io.instruction.immediate
-			}
-
-			// ADD
-			is("b0000000_000_0110011".U) {
-				out := io.rs1 + io.rs2
-			}
-
-			// SUB
-			is("b0110000_000_0110011".U) {
-				out := io.rs1 - io.rs2
-			}
-
-			// SLLI
 			is("b001_0010011".U) {
-				out := io.rs1 << io.instruction.immediate(5, 0)
-			}
+				switch(io.instruction.func3) {
+					// SLLI
+					is("b001".U) {
+						out := io.rs1 << io.instruction.immediate(5, 0)
+					}
 
-			// SRLI and SRAI
-			is("b101_0010011".U) {
-				when(io.instruction.immediate(10) === 1.U) { // SRAI
-					out := (io.rs1.asSInt >> io.instruction.immediate(5, 0)).asUInt
-				}.otherwise { // SLAI
-					out := io.rs1 >> io.instruction.immediate(5, 0)
+					// SRLI and SRAI
+					is("b101".U) {
+						when(io.instruction.immediate(10) === 1.U) { // SRAI
+							out := (io.rs1.asSInt >> io.instruction.immediate(5, 0)).asUInt
+						}.otherwise { // SLAI
+							out := io.rs1 >> io.instruction.immediate(5, 0)
+						}
+					}
 				}
 			}
 
-			// SLL
 			is("b001_0110011".U) {
-				out := io.rs1 << io.rs2(5, 0)
-			}
+				switch(io.instruction.func3) {
+					// SLL
+					is("b001".U) {
+						out := io.rs1 << io.rs2(5, 0)
+					}
 
-			// SRL and SRA
-			is("b101_0110011".U) {
-				when(io.instruction.immediate(10) === 1.U) { // SRA
-					out := (io.rs1.asSInt >> io.rs2(5, 0)).asUInt
-				}.otherwise { // SLA
-					out := io.rs1 >> io.rs2(5, 0)
+					// SRL and SRA
+					is("b101".U) {
+						when(io.instruction.immediate(10) === 1.U) { // SRA
+							out := (io.rs1.asSInt >> io.rs2(5, 0)).asUInt
+						}.otherwise { // SLA
+							out := io.rs1 >> io.rs2(5, 0)
+						}
+					}
+
+					// SLT
+					is("b010".U) {
+						when(io.rs1.asSInt < io.rs2.asSInt) {
+							out := 1.U;
+						}.otherwise {
+							out := 0.U;
+						}
+					}
+
+					// SLTU
+					is("b011".U) {
+						when(io.rs1 < io.rs2) {
+							out := 1.U;
+						}.otherwise {
+							out := 0.U;
+						}
+					}
+
+					// XOR
+					is("b100".U) {
+						out := io.rs1 ^ io.rs2
+					}
+
+					// OR
+					is("b110".U) {
+						out := io.rs1 | io.rs2
+					}
+
+					// AND
+					is("b111".U) {
+						out := io.rs1 & io.rs2
+					}
 				}
-			}
-
-			// SLT
-			is("b010_0110011".U) {
-				when(io.rs1.asSInt < io.rs2.asSInt) {
-					out := 1.U;
-				}.otherwise {
-					out := 0.U;
-				}
-			}
-
-			// SLTU
-			is("b011_0110011".U) {
-				when(io.rs1 < io.rs2) {
-					out := 1.U;
-				}.otherwise {
-					out := 0.U;
-				}
-			}
-
-			// XOR
-			is("b100_0110011".U) {
-				out := io.rs1 ^ io.rs2
-			}
-
-			// OR
-			is("b110_0110011".U) {
-				out := io.rs1 | io.rs2
-			}
-
-			// AND
-			is("b111_0110011".U) {
-				out := io.rs1 | io.rs2
 			}
 
 			// JAL
@@ -178,65 +194,72 @@ class ExecuteStage1() extends Module {
 			}
 
 			// JALR
-			is("b000_1100111".U) {
+			is("b1100111".U) {
 				out := io.instruction_pointer + 4.U
 
 				io.program_pointer_jump_flush := true.B
-				io.program_pointer_target := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt & 0xFFFFFFFEL.U
+				io.program_pointer_target := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt & ~1.U(32.W)
 			}
 
-			// BEQ
-			is("b000_1100011".U) {
-				when(io.rs1 === io.rs2) {
-					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
+			is("b1100011".U) {
+				switch(io.instruction.func3) {
+					// BEQ
+					is("b000".U) {
+						when(io.rs1 === io.rs2) {
+							io.program_pointer_jump_flush := true.B
+							io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
+						}
+					}
+
+					// BNEQ
+					is("b001".U) {
+						when(io.rs1 =/= io.rs2) {
+							io.program_pointer_jump_flush := true.B
+							io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
+						}
+					}
+
+					// BLT
+					is("b100".U) {
+						when(io.rs1.asSInt < io.rs2.asSInt) {
+							io.program_pointer_jump_flush := true.B
+							io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
+						}
+					}
+
+					// BLTU
+					is("b110".U) {
+						when(io.rs1 < io.rs2) {
+							io.program_pointer_jump_flush := true.B
+							io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
+						}
+					}
+
+					// BGE
+					is("b101".U) {
+						when(io.rs1.asSInt >= io.rs2.asSInt) {
+							io.program_pointer_jump_flush := true.B
+							io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
+						}
+					}
+
+					// BGEU
+					is("b111".U) {
+						when(io.rs1 >= io.rs2) {
+							io.program_pointer_jump_flush := true.B
+							io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
+						}
+					}
 				}
 			}
-
-			// BNEQ
-			is("b001_1100011".U) {
-				when(io.rs1 =/= io.rs2) {
-					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
-				}
-			}
-
-			// BLT
-			is("b100_1100011".U) {
-				when(io.rs1.asSInt < io.rs2.asSInt) {
-					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
-				}
-			}
-
-			// BLTU
-			is("b110_1100011".U) {
-				when(io.rs1 < io.rs2) {
-					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
-				}
-			}
-
-			// BGE
-			is("b101_1100011".U) {
-				when(io.rs1.asSInt >= io.rs2.asSInt) {
-					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
-				}
-			}
-
-			// BGEU
-			is("b111_1100011".U) {
-				when(io.rs1 >= io.rs2) {
-					io.program_pointer_jump_flush := true.B
-					io.program_pointer_target := (io.instruction_pointer.zext + io.instruction.immediate.asSInt).asUInt
-				}
-			}
-
-			// LW
 			is("b010_0000011".U) {
-				io.memory_read := true.B
-				io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+				switch(io.instruction.func3) {
+					// LW
+					is("b010".U) {
+						io.memory_read := true.B
+						io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+					}
+				}
 			}
 		}
 	}

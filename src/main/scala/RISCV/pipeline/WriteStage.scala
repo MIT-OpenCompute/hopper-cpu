@@ -38,20 +38,13 @@ class WriteStage() extends Module {
 			}
 
 			// SLTI, SLTIU, SLLI, SRLI, SRAI, XORI, ORI, ANDI
-			is("0010011".U) {
+			is("b0010011".U) {
 				io.register_write := true.B;
 				io.register_address := io.instruction.rd;
 				io.register_value := io.value;
 			}
 
-			// ADD, SUB
-			is("0110011".U) {
-				io.register_write := true.B;
-				io.register_address := io.instruction.rd;
-				io.register_value := io.value;
-			}
-
-			// SLL, SRL, SRA, SLT, SLTU, XOR, OR, AND
+			// ADD, SUB, SLL, SRL, SRA, SLT, SLTU, XOR, OR, AND
 			is("b0110011".U) {
 				io.register_write := true.B;
 				io.register_address := io.instruction.rd;
@@ -73,7 +66,7 @@ class WriteStage() extends Module {
 			}
 
 			// LW
-			is("0000011".U) {
+			is("b0000011".U) {
 				io.register_write := true.B;
 				io.register_address := io.instruction.rd;
 				io.register_value := io.value;
