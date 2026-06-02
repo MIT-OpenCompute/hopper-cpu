@@ -65,8 +65,27 @@ class ExecuteStage1() extends Module {
 				out := io.instruction_pointer + io.instruction.immediate;				
 			}
 
-			is("b010_0010011".U) {
+			is("b0010011".U) {
 				switch(io.instruction.func3) {
+					// ADDI
+					is("b000".U) {
+						out := io.rs1 + io.instruction.immediate
+					}
+
+					// SLLI
+					is("b001".U) {
+						out := io.rs1 << io.instruction.immediate(5, 0)
+					}
+
+					// SRLI and SRAI
+					is("b101".U) {
+						when(io.instruction.immediate(10) === 1.U) { // SRAI
+							out := (io.rs1.asSInt >> io.instruction.immediate(5, 0)).asUInt
+						}.otherwise { // SLAI
+							out := io.rs1 >> io.instruction.immediate(5, 0)
+						}
+					}
+
 					// SLTI
 					is("b010".U) {
 						when(io.rs1.asSInt < io.instruction.immediate.asSInt) {
@@ -103,7 +122,7 @@ class ExecuteStage1() extends Module {
 			}
 
 			is("b0110011".U) {
-				switch(io.instruction.func7) {
+				switch(io.instruction.func3) {
 					// ADD
 					is("b0000000".U) {
 						out := io.rs1 + io.rs2
@@ -113,29 +132,7 @@ class ExecuteStage1() extends Module {
 					is("b0110000".U) {
 						out := io.rs1 - io.rs2
 					}
-				}
-			}
 
-			is("b001_0010011".U) {
-				switch(io.instruction.func3) {
-					// SLLI
-					is("b001".U) {
-						out := io.rs1 << io.instruction.immediate(5, 0)
-					}
-
-					// SRLI and SRAI
-					is("b101".U) {
-						when(io.instruction.immediate(10) === 1.U) { // SRAI
-							out := (io.rs1.asSInt >> io.instruction.immediate(5, 0)).asUInt
-						}.otherwise { // SLAI
-							out := io.rs1 >> io.instruction.immediate(5, 0)
-						}
-					}
-				}
-			}
-
-			is("b001_0110011".U) {
-				switch(io.instruction.func3) {
 					// SLL
 					is("b001".U) {
 						out := io.rs1 << io.rs2(5, 0)
