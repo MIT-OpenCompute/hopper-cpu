@@ -264,12 +264,22 @@ class ExecuteStage1() extends Module {
 					io.program_pointer_target := io.instruction_pointer
 				}.otherwise {
 					switch(io.instruction.func3) {
+						// LB
+						is("b000".U) {
+							io.memory_read := true.B
+							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+						}
+
+						// LH
+						is("b001".U) {
+							io.memory_read := true.B
+							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+						}
+
 						// LW
 						is("b010".U) {
 							io.memory_read := true.B
 							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
-
-							interacting_with_memory := true.B
 						}
 					}
 				}
@@ -281,6 +291,22 @@ class ExecuteStage1() extends Module {
 					io.program_pointer_target := io.instruction_pointer
 				}.otherwise {
 					switch(io.instruction.func3) {
+						// SB
+						is("b000".U) {
+							io.memory_read := true.B
+							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+
+							interacting_with_memory := true.B
+						}
+
+						// SH
+						is("b001".U) {
+							io.memory_read := true.B
+							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+
+							interacting_with_memory := true.B
+						}
+
 						// SW
 						is("b010".U) {
 							io.memory_read := true.B

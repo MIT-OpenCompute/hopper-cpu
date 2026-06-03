@@ -40,6 +40,38 @@ class ExecuteStage2() extends Module {
 		switch(io.instruction.opcode) {
 			is("b0000011".U) {
 				switch(io.instruction.func3) {
+					// LB
+					is("b000".U) {
+						val offset = (io.rs1.zext + io.instruction.immediate.asSInt).asUInt % 4.U
+
+						switch(offset) {
+							is(0.U) {
+								out := io.memory_read_value & 0xFF.U
+							}
+
+							is(1.U) {
+								out := io.memory_read_value >> 8.U & 0xFF.U
+							}
+
+							is(2.U) {
+								out := io.memory_read_value >> 16.U & 0xFF.U
+							}
+
+							is(3.U) {
+								out := io.memory_read_value >> 24.U & 0xFF.U
+							}
+						}
+					}
+
+					// LH
+					is("b001".U) {
+						when((io.rs1.zext + io.instruction.immediate.asSInt).asUInt % 4.U === 0.U) {
+							out := io.memory_read_value & 0xFFFF.U
+						}.otherwise {
+							out := io.memory_read_value >> 16.U
+						}
+					}
+
 					// LW
 					is("b010".U) {
 						out := io.memory_read_value
@@ -49,6 +81,42 @@ class ExecuteStage2() extends Module {
 
 			is("b0100011".U) {
 				switch(io.instruction.func3) {
+					// SB
+					is("b000".U) {
+						io.memory_write := true.B
+						io.memory_write_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+						
+						switch((io.rs1.zext + io.instruction.immediate.asSInt).asUInt % 4.U) {
+							is(0.U) {
+								io.memory_write_value := io.memory_read_value(31, 8) ## io.rs2(7, 0)
+							}
+
+							is(1.U) {
+								io.memory_write_value := io.memory_read_value(31, 16) ## io.rs2(15, 8) ## io.memory_read_value(7, 0)
+							}
+
+							is(2.U) {
+								io.memory_write_value := io.memory_read_value(31, 24) ## io.rs2(23, 16) ## io.memory_read_value(15, 0)
+							}
+
+							is(3.U) {
+								io.memory_write_value := io.rs2(31, 24) ## io.memory_read_value(23, 0)
+							}
+						}
+					}
+
+					// SH
+					is("b001".U) {
+						io.memory_write := true.B
+						io.memory_write_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
+						
+						when((io.rs1.zext + io.instruction.immediate.asSInt).asUInt % 4.U === 0.U) {
+							io.memory_write_value := io.memory_read_value(31, 16) ## io.rs2(15, 0)
+						}.otherwise {
+							io.memory_write_value := io.rs2(31, 16) ## io.memory_read_value(15, 0)
+						}
+					}
+
 					// SW
 					is("b010".U) {
 						io.memory_write := true.B

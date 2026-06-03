@@ -184,3 +184,15 @@ class Core() extends Module {
 		}
 	}
 }
+
+object Core extends App {
+    ChiselStage.emitSystemVerilogFile(
+      new Core(),
+      firtoolOpts = Array(
+        "-disable-all-randomization",
+        "-strip-debug-info",
+        "-default-layer-specialization=enable"
+      ),
+      args = Array("--target-dir", "generated")
+    )
+}
