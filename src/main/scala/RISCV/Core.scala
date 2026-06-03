@@ -18,10 +18,9 @@ class Core() extends Module {
     val registers = Module(new Registers())
     registers.io.write_enable := false.B
     registers.io.write_address := 0.U(5.W)
+    registers.io.in := 0.U(32.W)
     registers.io.read_address_a := 0.U(5.W)
     registers.io.read_address_b := 0.U(5.W)
-    registers.io.read_address_c := 0.U(5.W)
-    registers.io.in := 0.U(32.W)
 
 	val memory = Module(new Memory())
 	memory.io.read_1 := true.B
@@ -173,6 +172,18 @@ class Core() extends Module {
 		printf("Address: %b\n", write_stage.io.register_address);
 		printf("Value: %b\n", write_stage.io.register_value);
 		printf("Valid: %b\n", write_stage.io.next_valid);
+
+		printf("=== Dump ===\n");
+		printf("01: %b\n", registers.io.debug_1);
+		printf("02: %b\n", registers.io.debug_2);
+		printf("03: %b\n", registers.io.debug_3);
+		printf("04: %b\n", registers.io.debug_4);
+		printf("05: %b\n", registers.io.debug_5);
+		printf("06: %b\n", registers.io.debug_6);
+		printf("07: %b\n", registers.io.debug_7);
+		printf("08: %b\n", registers.io.debug_8);
+		printf("09: %b\n", registers.io.debug_9);
+		printf("10: %b\n", registers.io.debug_10);
 	}.otherwise {
 		printf("Loading...\n");
 
