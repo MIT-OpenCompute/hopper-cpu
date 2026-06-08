@@ -8,9 +8,14 @@ class Core() extends Module {
     val io = IO(new Bundle {
 		val execute = Input(Bool())
 
-		val flash = Input(Bool())
-		val flash_address = Input(UInt(32.W))
-		val flash_value = Input(UInt(32.W))
+        val program_memory_adress = Output(UInt(32.W))
+        val program_memory_value = Input(UInt(32.W))
+
+        val memory_address = Output(UInt(32.W))
+        val memory_read = Output(Bool())
+        val memory_read_value = Input(UInt(32.W))
+        val memory_write = Output(Bool())
+        val memory_write_value = Output(UInt(32.W))
     })
 
 	val program_pointer = RegInit(0.U(32.W))
@@ -22,21 +27,14 @@ class Core() extends Module {
     registers.io.read_address_a := 0.U(5.W)
     registers.io.read_address_b := 0.U(5.W)
 
-	val memory = Module(new Memory())
-	memory.io.read_1 := true.B
-	memory.io.write_1 := false.B
-	memory.io.write_value_1 := 0.U
-
-	memory.io.btns := 0.U
-
 	// ==== FETCH ====
 
 	val fetch_stage = Module(new FetchStage())
 	fetch_stage.io.execute := io.execute
 	fetch_stage.io.program_pointer := program_pointer
-	fetch_stage.io.memory_read_value := memory.io.read_value_1
+	fetch_stage.io.memory_read_value := io.program_memory_value
 
-	memory.io.address_1 := fetch_stage.io.memory_read_address
+	io.program_memory_adress := fetch_stage.io.memory_read_address
 
 	// ==== DECODE ====
 	
@@ -93,24 +91,24 @@ class Core() extends Module {
 	execute_stage_2.io.valid := execute_stage_1.io.next_valid
 	execute_stage_2.io.previous_out := execute_stage_1.io.out
 
-	execute_stage_2.io.memory_read_value := memory.io.read_value_2
+	execute_stage_2.io.memory_read_value := io.memory_read_value
 
 	when(execute_stage_2.io.memory_write) {
-		memory.io.read_2 := false.B
-		memory.io.write_2 := true.B
-		memory.io.address_2 := execute_stage_2.io.memory_write_address
-		memory.io.write_value_2 := execute_stage_2.io.memory_write_value
+		io.memory_read := false.B
+		io.memory_write := true.B
+		io.memory_address := execute_stage_2.io.memory_write_address
+		io.memory_write_value := execute_stage_2.io.memory_write_value
 	}.otherwise {
 		when(execute_stage_1.io.memory_read) {
-			memory.io.read_2 := true.B
-			memory.io.write_2 := false.B
-			memory.io.address_2 := execute_stage_1.io.memory_read_address
-			memory.io.write_value_2 := 0.U
+			io.memory_read := true.B
+			io.memory_write := false.B
+			io.memory_address := execute_stage_1.io.memory_read_address
+			io.memory_write_value := 0.U
 		}.otherwise {
-			memory.io.read_2 := false.B
-			memory.io.write_2 := false.B
-			memory.io.address_2 := 0.U
-			memory.io.write_value_2 := 0.U
+			io.memory_read := false.B
+			io.memory_write := false.B
+			io.memory_address := 0.U
+			io.memory_write_value := 0.U
 		}
 	}
 
@@ -160,7 +158,7 @@ class Core() extends Module {
 		printf("=== Execute 2 ===\n");
 		printf("Opcode: %b\n", execute_stage_2.io.instruction.opcode);
 		printf("Func3: %b\n", execute_stage_2.io.instruction.func3);
-		printf("Read Value: %b\n", memory.io.read_value_2);
+		printf("Read Value: %b\n", execute_stage_2.io.memory_read_value);
 		printf("Write: %b\n", execute_stage_2.io.memory_write);
 		printf("Write Adress: %b\n", execute_stage_2.io.memory_write_address);
 		printf("Write Value: %b\n", execute_stage_2.io.memory_write_value);
@@ -184,15 +182,6 @@ class Core() extends Module {
 		printf("08: %b\n", registers.io.debug_8);
 		printf("09: %b\n", registers.io.debug_9);
 		printf("10: %b\n", registers.io.debug_10);
-	}.otherwise {
-		printf("Loading...\n");
-
-		when(io.flash) {
-			memory.io.read_1 := false.B
-			memory.io.write_1 := true.B
-			memory.io.address_1 := io.flash_address
-			memory.io.write_value_1 := io.flash_value
-		}
 	}
 }
 
