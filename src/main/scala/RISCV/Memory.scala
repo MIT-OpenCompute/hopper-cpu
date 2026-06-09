@@ -19,9 +19,12 @@ class Memory() extends Module {
 
         val btns = Input(UInt(4.W))
     })
+    val mem_interface = Module(new MemoryInferface())
+    val mem_req = Wire(new MemReq)
+
 
     val memory = SyncReadMem(1024, UInt(32.W))
-    loadMemoryFromFileInline(memory, "program.hex")nt(32.W))
+    // loadMemoryFromFileInline(memory, "program.hex")nt(32.W)
         val write_vga = Output(Bool())
         val write_value_vga = Output
 
@@ -52,12 +55,22 @@ class Memory() extends Module {
         }
     }
 
-    io.read_value_1 := memory.readWrite(
-      io.address_1,
-      io.write_value_1,
-      (io.read_1 || io.write_1) && !isVGA,
-      io.write_1
-    )
+    // io.read_value_1 := memory.readWrite(
+    //   io.address_1,
+    //   io.write_value_1,
+    //   (io.read_1 || io.write_1) && !isVGA,
+    //   io.write_1
+    // )
+
+    mem_req.address    := io.address_1
+    mem_req.write_data := io.write_value_1
+    mem_req.read       := (io.read_1 || io.write_1) && !isVGA
+    mem_req.write      := io.write_1
+
+    mem_interface.io.req := mem_req
+    mem_interface.io.start := (io.read_1 || io.write_1) && !isVGA
+
+    io.read_value_1 := mem_interface.io.data
 
 
 
