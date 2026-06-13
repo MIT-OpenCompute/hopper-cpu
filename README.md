@@ -137,3 +137,11 @@ nix-shell -p imagemagick --run "convert frame.ppm frame.png"
 python convert.py
 
 python.exe .\load_program.py .\programs\test.hex --port COM6
+
+## New VGA Testing
+```
+cd generated
+verilator --cc --exe --build -j 0 ../simulation/vga-image.cpp -f filelist.f --top VGAController
+./obj_dir/VVGAController
+ffmpeg -i frame.ppm frame.png -y
+```
