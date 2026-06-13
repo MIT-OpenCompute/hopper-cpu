@@ -41,7 +41,7 @@ class Main() extends Module {
     val core = Module(new Core())
     core.io.execute := io.execute
     
-    memory.io.address_1 := core.io.program_memory_adress
+    memory.io.address_1 := core.io.program_memory_adress / 4.U
     core.io.program_memory_value := memory.io.read_value_1
 
     memory.io.address_2 := core.io.memory_address

@@ -45,7 +45,7 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
             lines.zipWithIndex.foreach { case (line, index) =>
 				val value = java.lang.Long.parseLong(line.trim, 16)
 
-				dut.io.flash_address.poke((index * 4).U)
+				dut.io.flash_address.poke(index.U)
 				dut.io.flash_value.poke(value.U)
 	            
 				dut.clock.step(1)

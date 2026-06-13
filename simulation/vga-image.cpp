@@ -1,7 +1,8 @@
-#include "VVGAController.h"
+#include "VMain.h"
 #include "verilated.h"
 #include <cstdio>
 #include <vector>
+#include <fstream>
 
 static constexpr int H_VISIBLE = 640;
 static constexpr int H_FRONT   = 16;
@@ -17,19 +18,21 @@ static constexpr int V_TOTAL   = V_VISIBLE + V_FRONT + V_SYNC + V_BACK;
 
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
-    auto dut = std::make_unique<VVGAController>();
+    auto dut = std::make_unique<VMain>();
 
-    dut->io_write = 0;
-    dut->io_address = 0;
-    dut->io_write_value = 0;
+    dut->io_execute = 0;
+    dut->io_flash = 0;
+    dut->io_flash_address = 0;
+    dut->io_flash_value = 0;
+    dut->io_btns = 0;
 
     dut->reset = 1;
     dut->clock = 0;
-    dut->io_read_clk = 0;
+    dut->io_vga_clk = 0;
 
     for (int i = 0; i < 4; i++) {
         dut->clock ^= 1;
-        dut->io_read_clk = dut->clock;
+        dut->io_vga_clk = dut->clock;
         dut->eval();
     }
 
@@ -40,37 +43,53 @@ int main(int argc, char** argv) {
     int hCount = 0;
     int vCount = 0;
 
-    dut->io_write = 1;
-    dut->io_address = 640 * 480 / 2;
-    dut->io_write_value = 0b11100000;
+    std::ifstream file("/home/liamh/RISC-V/programs/frame-test.hex");
 
-    dut->clock = 1;
-    dut->io_read_clk = 1;
-    dut->eval();
-    dut->clock = 0;
-    dut->io_read_clk = 0;
-    dut->eval();
+    std::string line;
+    int address = 0;
 
-    dut->io_write = 0;
-    dut->io_address = 0;
-    dut->io_write_value = 0;
+    while (std::getline(file, line)) {
+        if (line.empty()) continue;
 
-    dut->clock = 1;
-    dut->io_read_clk = 1;
-    dut->eval();
-    dut->clock = 0;
-    dut->io_read_clk = 0;
-    dut->eval();
+        uint32_t value = std::stoul(line, nullptr, 16);
+
+        dut->io_flash = 1;
+        dut->io_flash_address = address;
+        dut->io_flash_value = value;
+
+        printf("Writing %x at %d\n", value, address);
+
+        dut->clock = 1;
+        dut->io_vga_clk = 1;
+        dut->eval();
+        dut->clock = 0;
+        dut->io_vga_clk = 0;
+        dut->eval();
+
+        address++;
+    }
+
+    dut->io_flash = 0;
+    dut->io_flash_address = 0;
+    dut->io_flash_value = 0;
 
     for (int i = 0; i < 4; i++) {
         dut->clock ^= 1;
-        dut->io_read_clk = dut->clock;
+        dut->io_vga_clk = dut->clock;
         dut->eval();
     }
 
+    dut->io_execute = 1;
+
+    // for (int i = 0; i < 2 * 8; i++) {
+    //     dut->clock ^= 1;
+    //     dut->io_vga_clk = dut->clock;
+    //     dut->eval();
+    // }
+
     for (int cycle = 0; cycle < H_TOTAL * V_TOTAL; cycle++) {
         dut->clock = 1;
-        dut->io_read_clk = 1;
+        dut->io_vga_clk = 1;
         dut->eval();
 
         if (!dut->io_blanking) {
@@ -89,7 +108,7 @@ int main(int argc, char** argv) {
         }
 
         dut->clock = 0;
-        dut->io_read_clk = 0;
+        dut->io_vga_clk = 0;
         dut->eval();
 
         if (hCount == H_TOTAL - 1) {

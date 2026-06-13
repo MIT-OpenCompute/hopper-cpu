@@ -27,17 +27,17 @@ class Memory() extends Module {
 
     val memory = SyncReadMem(4096, UInt(32.W))
 
-    val is_vga = io.address_2 >= 0xFFF.U
-    io.address_vga := io.address_2 - 0xFFF.U
-    io.write_vga := is_vga && io.write_2
-    io.write_value_vga := io.write_value_2
-
     io.read_value_1 := memory.readWrite(
       io.address_1,
       io.write_value_1,
       io.read_1 || io.write_1,
       io.write_1
     )
+
+    val is_vga = io.address_2 >= 0xFFF.U
+    io.address_vga := io.address_2 - 0xFFF.U
+    io.write_vga := is_vga && io.write_2
+    io.write_value_vga := io.write_value_2
 
     io.read_value_2 := memory.readWrite(
       io.address_2,
