@@ -25,53 +25,31 @@ class Memory() extends Module {
         val btns = Input(UInt(4.W))
     })
 
-    val memory = SyncReadMem(1024, UInt(32.W))
+    val memory = SyncReadMem(4096, UInt(32.W))
 
-    io.address_vga := 0.U
-    io.write_vga := true.B
-    io.write_value_vga := 0.U
-    io.read_value_1 := 0.U
-    io.read_value_2 := 0.U
-
-    val isVGA = io.address_1 >= 0b1000000000000.U;
-    io.address_vga := Mux(isVGA, io.address_1 / 0b1000000000000.U - 1.U, 0.U);
-    io.write_vga := isVGA && io.write_1
-    io.write_value_vga := io.write_value_1
-
-    when(io.write_1) {
-        when(isVGA) {
-            printf(
-              "Writing to VGA! Address: %b Data: %b\n",
-              io.address_1 / 0b1000000000000.U - 1.U,
-              io.write_value_1
-            );
-        }.otherwise {
-            printf(
-              "Writing to Memory! Address: %b Data: %b\n",
-              io.address_1,
-              io.write_value_1
-            );
-        }
-    }
+    val is_vga = io.address_2 >= 0xFFF.U
+    io.address_vga := io.address_2 - 0xFFF.U
+    io.write_vga := is_vga && io.write_2
+    io.write_value_vga := io.write_value_2
 
     io.read_value_1 := memory.readWrite(
       io.address_1,
       io.write_value_1,
-      (io.read_1 || io.write_1) && !isVGA,
+      io.read_1 || io.write_1,
       io.write_1
     )
 
     io.read_value_2 := memory.readWrite(
       io.address_2,
       io.write_value_2,
-      (io.read_2 || io.write_2) && !isVGA,
+      (io.read_2 || io.write_2) && !is_vga,
       io.write_2
     )
 
     val is_btns = RegInit(false.B)
-    is_btns := io.read_1 && io.address_1 === 0x12c00000.U // 0x4B000000
+    is_btns := io.read_2 && io.address_2 === 0x12c00000.U // 0x4B000000
 
     when(is_btns) {
-        io.read_value_1 := io.btns
+        io.read_value_2 := io.btns
     }
 }

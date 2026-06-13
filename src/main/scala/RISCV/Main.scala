@@ -11,6 +11,14 @@ class Main() extends Module {
         val flash = Input(Bool())
 		val flash_address = Input(UInt(32.W))
 		val flash_value = Input(UInt(32.W))
+
+        val vga_clk = Input(Clock());
+        val hsync = Output(Bool())
+        val vsync = Output(Bool())
+        val rgb = Output(UInt(12.W))
+        val blanking = Output(Bool())
+
+        val btns = Input(UInt(4.W))
     })
 
     val memory = Module(new Memory())
@@ -18,7 +26,17 @@ class Main() extends Module {
 	memory.io.write_1 := false.B
 	memory.io.write_value_1 := 0.U
 
-	memory.io.btns := 0.U
+	memory.io.btns := io.btns
+
+    val vga_controller = Module(new VGAController())
+    vga_controller.io.address := memory.io.address_vga
+    vga_controller.io.write := memory.io.write_vga
+    vga_controller.io.write_value := memory.io.write_value_vga
+    vga_controller.io.read_clk := io.vga_clk
+    io.hsync := vga_controller.io.hsync
+    io.vsync := vga_controller.io.vsync
+    io.rgb := vga_controller.io.rgb
+    io.blanking := vga_controller.io.blanking
 
     val core = Module(new Core())
     core.io.execute := io.execute
