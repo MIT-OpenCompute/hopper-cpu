@@ -34,8 +34,8 @@ class Memory() extends Module {
       io.write_1
     )
 
-    val is_vga = io.address_2 >= 0xFFF.U
-    io.address_vga := io.address_2 - 0xFFF.U
+    val is_vga = io.address_2 >= 0x1000.U
+    io.address_vga := io.address_2 - 0x1000.U
     io.write_vga := is_vga && io.write_2
     io.write_value_vga := io.write_value_2
 
