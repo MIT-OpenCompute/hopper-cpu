@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <vector>
 #include <fstream>
+#include <cstdlib>
 
 static constexpr int H_VISIBLE = 640;
 static constexpr int H_FRONT   = 16;
@@ -81,57 +82,59 @@ int main(int argc, char** argv) {
 
     dut->io_execute = 1;
 
-    // for (int i = 0; i < 2 * 8; i++) {
+    // for (int i = 0; i < 2 * 24; i++) {
     //     dut->clock ^= 1;
     //     dut->io_vga_clk = dut->clock;
     //     dut->eval();
     // }
 
-    for (int cycle = 0; cycle < H_TOTAL * V_TOTAL; cycle++) {
-        dut->clock = 1;
-        dut->io_vga_clk = 1;
-        dut->eval();
+    while(1) {
+        for (int cycle = 0; cycle < H_TOTAL * V_TOTAL; cycle++) {
+            dut->clock = 1;
+            dut->io_vga_clk = 1;
+            dut->eval();
 
-        if (!dut->io_blanking) {
-            int x = hCount;
-            int y = vCount;
+            if (!dut->io_blanking) {
+                int x = hCount;
+                int y = vCount;
 
-            if (x < H_VISIBLE && y < V_VISIBLE) {
-                uint16_t rgb12 = dut->io_rgb;
-                
-                int idx = (y * H_VISIBLE + x) * 3;
-                
-                pixels[idx + 0] = ((rgb12 >> 8) & 0xF) * 17;
-                pixels[idx + 1] = ((rgb12 >> 4) & 0xF) * 17;
-                pixels[idx + 2] = ((rgb12 >> 0) & 0xF) * 17;
+                if (x < H_VISIBLE && y < V_VISIBLE) {
+                    uint16_t rgb12 = dut->io_rgb;
+                    
+                    int idx = (y * H_VISIBLE + x) * 3;
+                    
+                    pixels[idx + 0] = ((rgb12 >> 8) & 0xF) * 17;
+                    pixels[idx + 1] = ((rgb12 >> 4) & 0xF) * 17;
+                    pixels[idx + 2] = ((rgb12 >> 0) & 0xF) * 17;
+                }
+            }
+
+            dut->clock = 0;
+            dut->io_vga_clk = 0;
+            dut->eval();
+
+            if (hCount == H_TOTAL - 1) {
+                hCount = 0;
+                vCount = (vCount == V_TOTAL - 1) ? 0 : vCount + 1;
+            } else {
+                hCount++;
             }
         }
 
-        dut->clock = 0;
-        dut->io_vga_clk = 0;
-        dut->eval();
+        FILE* f = fopen("frame.ppm", "wb");
 
-        if (hCount == H_TOTAL - 1) {
-            hCount = 0;
-            vCount = (vCount == V_TOTAL - 1) ? 0 : vCount + 1;
-        } else {
-            hCount++;
-        }
+        if (!f) { perror("fopen"); return 1; }
+        
+        fprintf(f, "P6\n%d %d\n255\n", H_VISIBLE, V_VISIBLE);
+        
+        fwrite(pixels.data(), 1, pixels.size(), f);
+        
+        fclose(f);
+
+        system("ffmpeg -i frame.ppm frame.png -y");
     }
 
-    FILE* f = fopen("frame.ppm", "wb");
-
-    if (!f) { perror("fopen"); return 1; }
-    
-    fprintf(f, "P6\n%d %d\n255\n", H_VISIBLE, V_VISIBLE);
-    
-    fwrite(pixels.data(), 1, pixels.size(), f);
-    
-    fclose(f);
-
     dut->final();
-
-    printf("Wrote frame.ppm (%dx%d)\n", H_VISIBLE, V_VISIBLE);
     
     return 0;
 }

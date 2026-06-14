@@ -124,6 +124,8 @@ class Core() extends Module {
 	registers.io.in := write_stage.io.register_value
 
 	when(io.execute) {
+		printf("Program Pointer: %d\n", program_pointer);
+
 		// printf("\n\n\n=== Fetch ===\n");
 		// printf("Program Pointer: %d\n", program_pointer);
 		// printf("Data: %b\n", fetch_stage.io.instruction);
@@ -138,6 +140,7 @@ class Core() extends Module {
 		// printf("Valid: %b\n", decode_stage.io.next_valid);
 
 		// printf("=== Read ===\n");
+		// printf("Opcode: %b\n", read_stage.io.instruction.opcode);
 		// printf("A: %b\n", read_stage.io.out_a);
 		// printf("B: %b\n", read_stage.io.out_b);
 		// printf("Valid: %b\n", read_stage.io.next_valid);
@@ -166,6 +169,7 @@ class Core() extends Module {
 		// printf("Valid: %b\n", execute_stage_2.io.next_valid);
 
 		// printf("=== Write ===\n");
+		// printf("Opcode: %b\n", write_stage.io.instruction.opcode);
 		// printf("Write: %b\n", write_stage.io.register_write);
 		// printf("Address: %b\n", write_stage.io.register_address);
 		// printf("Value: %b\n", write_stage.io.register_value);
@@ -181,9 +185,7 @@ class Core() extends Module {
 		// printf("07: %b\n", registers.io.debug_7);
 		// printf("08: %b\n", registers.io.debug_8);
 		// printf("09: %b\n", registers.io.debug_9);
-		// printf("10: %b\n", registers.io.debug_10);
-		
-        printf("Program Pointer: %d\n", program_pointer);
+		// printf("10: %b\n", registers.io.debug_10);		
 	}
 }
 
