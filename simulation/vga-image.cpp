@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
     int hCount = 0;
     int vCount = 0;
 
-    std::ifstream file("/home/liamh/RISC-V/programs/frame-test.hex");
+    std::ifstream file("/home/liamh/RISC-V/programs/hello.hex");
 
     std::string line;
     int address = 0;
@@ -82,59 +82,68 @@ int main(int argc, char** argv) {
 
     dut->io_execute = 1;
 
-    // for (int i = 0; i < 2 * 24; i++) {
+    // for (int i = 0; i < 2 * 64; i++) {
     //     dut->clock ^= 1;
     //     dut->io_vga_clk = dut->clock;
     //     dut->eval();
     // }
 
-    while(1) {
+    bool prev_vsync = 1;
+    int pixelIdx = 0;
+
+    while (1) {
+        pixelIdx = 0;
+
+        while (true) {
+            dut->clock = 1; dut->io_vga_clk = 1; dut->eval();
+            bool vsync = dut->io_vsync;
+            dut->clock = 0; dut->io_vga_clk = 0; dut->eval();
+
+            if (prev_vsync && !vsync) break;
+            prev_vsync = vsync;
+        }
+        prev_vsync = 0;
+
         for (int cycle = 0; cycle < H_TOTAL * V_TOTAL; cycle++) {
-            dut->clock = 1;
-            dut->io_vga_clk = 1;
-            dut->eval();
+            dut->clock = 1; dut->io_vga_clk = 1; dut->eval();
 
-            if (!dut->io_blanking) {
-                int x = hCount;
-                int y = vCount;
+            bool vsync    = dut->io_vsync;
+            bool blanking = dut->io_blanking;
+            uint16_t rgb12 = dut->io_rgb;
 
-                if (x < H_VISIBLE && y < V_VISIBLE) {
-                    uint16_t rgb12 = dut->io_rgb;
-                    
-                    int idx = (y * H_VISIBLE + x) * 3;
-                    
-                    pixels[idx + 0] = ((rgb12 >> 8) & 0xF) * 17;
-                    pixels[idx + 1] = ((rgb12 >> 4) & 0xF) * 17;
-                    pixels[idx + 2] = ((rgb12 >> 0) & 0xF) * 17;
-                }
+            dut->clock = 0; dut->io_vga_clk = 0; dut->eval();
+
+            if (prev_vsync && !vsync) {
+                printf("vsync mid-frame at cycle %d — counter mismatch!\n", cycle);
             }
+            prev_vsync = vsync;
 
-            dut->clock = 0;
-            dut->io_vga_clk = 0;
-            dut->eval();
-
-            if (hCount == H_TOTAL - 1) {
-                hCount = 0;
-                vCount = (vCount == V_TOTAL - 1) ? 0 : vCount + 1;
-            } else {
-                hCount++;
+            if (!blanking && pixelIdx < H_VISIBLE * V_VISIBLE) {
+                pixels[pixelIdx * 3 + 0] = ((rgb12 >> 8) & 0xF) * 17;
+                pixels[pixelIdx * 3 + 1] = ((rgb12 >> 4) & 0xF) * 17;
+                pixels[pixelIdx * 3 + 2] = ((rgb12 >> 0) & 0xF) * 17;
+                pixelIdx++;
             }
         }
 
+        printf("Captured %d pixels (expected %d)\n", pixelIdx, H_VISIBLE * V_VISIBLE);
+
         FILE* f = fopen("frame.ppm", "wb");
-
         if (!f) { perror("fopen"); return 1; }
-        
         fprintf(f, "P6\n%d %d\n255\n", H_VISIBLE, V_VISIBLE);
-        
         fwrite(pixels.data(), 1, pixels.size(), f);
-        
         fclose(f);
-
         system("ffmpeg -i frame.ppm frame.png -y");
     }
 
     dut->final();
     
+    FILE* f = fopen("frame.ppm", "wb");
+    if (!f) { perror("fopen"); return 1; }
+    fprintf(f, "P6\n%d %d\n255\n", H_VISIBLE, V_VISIBLE);
+    fwrite(pixels.data(), 1, pixels.size(), f);
+    fclose(f);
+    system("ffmpeg -i frame.ppm frame.png -y");
+
     return 0;
 }
