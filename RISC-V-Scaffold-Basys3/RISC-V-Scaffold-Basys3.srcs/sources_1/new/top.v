@@ -70,18 +70,18 @@ module Top(
         .clock                  (cpu_clk),
         .reset                  (reset),
         .io_execute             (execute),
-        .io_debug_write         (debug_write),
-        .io_debug_write_address (debug_write_address),
-        .io_debug_write_data    (debug_write_data),
-        .io_debug_1             (debug_1),
-        .io_debug_2             (debug_2),
-        .io_hsync               (vgaHSync),
-        .io_vsync               (vgaVSync),
+        .io_flash         (debug_write),
+        .io_flash_address (debug_write_address),
+        .io_flash_value    (debug_write_data),
+//        .io_debug_1             (debug_1),
+//        .io_debug_2             (debug_2),
+        .io_hsync               (vga_hsync_int),
+        .io_vsync               (vga_vsync_int),
         .io_rgb                 (rgb),
         .io_blanking            (blanking),
-        .io_vga_clk          (clk_25),
-        .io_btns(btns)
-        
+        .io_vga_clk             (clk_25),
+        .io_btns                (btns)
+//        .io_tx                  (RsTx)
     );
 
     assign vgaRed   = blanking ? 4'h0 : rgb[11:8];

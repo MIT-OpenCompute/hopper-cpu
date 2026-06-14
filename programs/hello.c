@@ -43,22 +43,6 @@ int main() {
             }
         }
 
-        // if (*btns & 0b0001 && paddY1 < 239 - 21) {
-        //     paddY1 += 1;
-        // }
-
-        // if (*btns & 0b0010 && paddY1 > 21) {
-        //     paddY1 -= 1;
-        // }
-
-        // if (*btns & 0b0100 && paddY2 < 239 - 21) {
-        //     paddY2 += 1;
-        // }
-
-        // if (*btns & 0b1000 && paddY2 > 21) {
-        //     paddY2 -= 1;
-        // }
-
         ballX += dX;
         ballY += dY;
 
