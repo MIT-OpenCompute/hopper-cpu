@@ -4,7 +4,7 @@
 
 ./xpack-riscv-none-elf-gcc-15.2.0-1/bin/riscv-none-elf-objcopy -O binary ./programs/hello.elf ./programs/hello.bin
 
-python convert.py
+python convert.py ./programs/hello.bin ./programs/hello.hex || exit 1
 
 rm ./programs/hello.bin
 rm ./programs/hello.elf
