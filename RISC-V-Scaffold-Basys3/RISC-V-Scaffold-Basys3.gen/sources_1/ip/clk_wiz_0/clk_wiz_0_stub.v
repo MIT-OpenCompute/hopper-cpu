@@ -2,7 +2,7 @@
 // Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 // --------------------------------------------------------------------------------
 // Tool Version: Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
-// Date        : Sun Apr  5 13:21:14 2026
+// Date        : Sun Jun 14 16:06:02 2026
 // Host        : arya running 64-bit EndeavourOS Linux
 // Command     : write_verilog -force -mode synth_stub -rename_top clk_wiz_0 -prefix
 //               clk_wiz_0_ clk_wiz_0_stub.v

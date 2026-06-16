@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 import chisel3.simulator.PeekPokeAPI.TestableRecord
 import scala.io.Source
 
-class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
+class CoreSpec extends AnyFreeSpec with Matchers with ChiselSim {
     // "Core should execute program.hex correctly" in {
     //     simulate(new Core()) { dut =>
 	// 		val path = getClass.getResource("/program.hex").getPath
@@ -35,8 +35,8 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
     //     }
     // }
 
-	"Main should execute memory.hex correctly" in {
-        simulate(new Main()) { dut =>
+	"Core should execute memory.hex correctly" in {
+        simulate(new Core()) { dut =>
 			val path = getClass.getResource("/memory.hex").getPath
             val lines = Source.fromFile(path).getLines().toList
 
@@ -45,7 +45,7 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
             lines.zipWithIndex.foreach { case (line, index) =>
 				val value = java.lang.Long.parseLong(line.trim, 16)
 
-				dut.io.flash_address.poke(index.U)
+				dut.io.flash_address.poke((index * 4).U)
 				dut.io.flash_value.poke(value.U)
 	            
 				dut.clock.step(1)

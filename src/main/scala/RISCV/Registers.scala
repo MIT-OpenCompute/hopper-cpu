@@ -25,15 +25,15 @@ import _root_.circt.stage.ChiselStage
 
 class Registers() extends Module {
     val io = IO(new Bundle {
-        val in  = Input(UInt(32.W))
+        val write_enable = Input(Bool())
         val write_address = Input(UInt(5.W))
+        val in  = Input(UInt(32.W))
+
         val read_address_a = Input(UInt(5.W))
         val read_address_b = Input(UInt(5.W))
-        val read_address_c = Input(UInt(5.W)) // Testing address port
-        val write_enable = Input(Bool())
-        val out_a = Output(UInt(32.W))
+        
+		val out_a = Output(UInt(32.W))
         val out_b = Output(UInt(32.W))
-        val out_c = Output(UInt(32.W)) // Testing output port
 
         val debug_1 = Output(UInt(32.W));
         val debug_2 = Output(UInt(32.W));
@@ -52,7 +52,6 @@ class Registers() extends Module {
     // Dual read ports
     io.out_a := regs(io.read_address_a)
     io.out_b := regs(io.read_address_b)
-    io.out_c := regs(io.read_address_c)
 
     io.debug_1 := regs(1);
     io.debug_2 := regs(2);
