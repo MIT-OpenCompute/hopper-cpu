@@ -18,6 +18,9 @@ class ExecuteStage2() extends Module {
 		val next_instruction = Output(new InstructionBundle())
 		val next_valid = Output(Bool())
 
+		val stall = Input(Bool())
+
+
 		val memory_read_value = Input(UInt(32.W))
 		val memory_write = Output(Bool())
 		val memory_write_address = Output(UInt(32.W))
@@ -25,11 +28,11 @@ class ExecuteStage2() extends Module {
     })
 
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
-	instruction := io.instruction
+	instruction := Mux(io.stall, instruction, io.instruction)
 	io.next_instruction := instruction
 
 	val out = RegInit(0.U(32.W))
-	out := io.previous_out
+	out := Mux(io.stall, out, io.previous_out)
 	io.out := out
 
 	io.memory_write := false.B
@@ -129,6 +132,6 @@ class ExecuteStage2() extends Module {
 	}
 
 	val valid = RegInit(false.B)
-	valid := io.valid
+	valid := Mux(io.stall, valid, io.valid)
 	io.next_valid := valid
 }

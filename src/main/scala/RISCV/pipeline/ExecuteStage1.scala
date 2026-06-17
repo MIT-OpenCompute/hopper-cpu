@@ -21,6 +21,7 @@ class ExecuteStage1() extends Module {
 		val next_valid = Output(Bool())
 
 		val flush = Input(Bool())
+		val stall = Input(Bool())
 
 		val program_pointer_jump_flush = Output(Bool())
 		val memory_use_flush = Output(Bool())
@@ -28,27 +29,30 @@ class ExecuteStage1() extends Module {
 
 		val memory_read = Output(Bool())
 		val memory_read_address = Output(UInt(32.W))
+
+
     })
 
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
-	instruction := io.instruction
+	instruction := Mux(io.stall, instruction, io.instruction)
 	io.next_instruction := instruction
 
 	val next_instruction_pointer = RegInit(0.U(32.W))
-	next_instruction_pointer := io.instruction_pointer
+	next_instruction_pointer := Mux(io.stall, next_instruction_pointer, io.instruction_pointer)
 	io.next_instruction_pointer := next_instruction_pointer
 
 	val rs1 = RegInit(0.U(32.W))
-	rs1 := io.rs1
+	rs1 := Mux(io.stall, rst1, io.rs1)
 	io.next_rs1 := rs1
 
 	val rs2 = RegInit(0.U(32.W))
-	rs2 := io.rs2
+	rs2 := Mux(io.stall, rs2, io.rs2)
 	io.next_rs2 := rs2
 
-	val out = RegInit(0.U(32.W))
-	out := 0.U
-	io.out := out
+	val out_r = RegInit(0.U(32.W))
+	val out = WireInit(0.U(32.W))
+	
+	io.out := out_r
 
 	io.program_pointer_jump_flush := false.B
 	io.program_pointer_target := 0.U
@@ -319,8 +323,8 @@ class ExecuteStage1() extends Module {
 			}
 		}
 	}
-
+	out := Mux(io.stall, out_r, out)
 	val valid = RegInit(false.B)
-	valid := io.valid && !io.flush
+	valid := Mux(io.stall,valid, io.valid && !io.flush)
 	io.next_valid := valid
 }

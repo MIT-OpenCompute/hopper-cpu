@@ -11,6 +11,8 @@ class WriteStage() extends Module {
 		val value = Input(UInt(32.W))
 		val valid = Input(Bool())
 
+		val stall = Input(Bool())
+
 		val register_write = Output(Bool())
 		val register_address = Output(UInt(5.W))
 		val register_value = Output(UInt(32.W))
@@ -75,6 +77,6 @@ class WriteStage() extends Module {
 	}
 
 	val valid = RegInit(false.B)
-	valid := io.valid
+	valid := Mux(io.stall, valid,  io.valid)
 	io.next_valid := valid
 }

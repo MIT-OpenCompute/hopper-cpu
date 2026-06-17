@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
     int hCount = 0;
     int vCount = 0;
 
-    std::ifstream file("/home/liamh/RISC-V/programs/hello.hex");
+    std::ifstream file("/home/arya/Documents/Github/RISC-V/programs/hello.hex");
 
     std::string line;
     int address = 0;
