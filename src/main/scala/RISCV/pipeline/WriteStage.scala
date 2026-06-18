@@ -76,7 +76,10 @@ class WriteStage() extends Module {
 		}
 	}
 
+
 	val valid = RegInit(false.B)
 	valid := Mux(io.stall, valid,  io.valid)
+		// valid := io.valid && !io.stall
+
 	io.next_valid := valid
 }

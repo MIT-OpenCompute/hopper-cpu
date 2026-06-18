@@ -68,6 +68,8 @@ class ReadStage() extends Module {
 	io.next_instruction_pointer := next_instruction_pointer
 
 	val valid = RegInit(false.B)
+	// valid := io.valid && !io.flush && !io.stall
+
 	valid := Mux(io.stall, valid, io.valid && !io.flush)
 	io.next_valid := valid
 }

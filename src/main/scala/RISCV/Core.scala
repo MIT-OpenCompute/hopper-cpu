@@ -33,6 +33,7 @@ class Core() extends Module {
 	fetch_stage.io.execute := io.execute
 	fetch_stage.io.program_pointer := program_pointer
 	fetch_stage.io.memory_read_value := io.program_memory_value
+	fetch_stage.io.stall := false.B
 
 	io.program_memory_adress := fetch_stage.io.memory_read_address
 
@@ -42,6 +43,7 @@ class Core() extends Module {
 	decode_stage.io.instruction := fetch_stage.io.instruction
 	decode_stage.io.instruction_pointer := fetch_stage.io.next_instruction_pointer
 	decode_stage.io.valid := fetch_stage.io.next_valid
+	decode_stage.io.stall := false.B
 
 	// ==== READ ====
 
@@ -51,6 +53,7 @@ class Core() extends Module {
 	read_stage.io.register_value_b := registers.io.out_b
 	read_stage.io.instruction_pointer := decode_stage.io.next_instruction_pointer
 	read_stage.io.valid := decode_stage.io.next_valid
+	read_stage.io.stall := false.B
 
 	registers.io.read_address_a := read_stage.io.register_read_a
     registers.io.read_address_b := read_stage.io.register_read_b
@@ -63,20 +66,31 @@ class Core() extends Module {
 	execute_stage_1.io.rs2 := read_stage.io.out_b
 	execute_stage_1.io.instruction_pointer := read_stage.io.next_instruction_pointer
 	execute_stage_1.io.valid := read_stage.io.next_valid
+	execute_stage_1.io.stall := false.B
 
-	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
+	// fetch_stage.io.stall := execute_stage_1.io.memory_use_flush
+	// decode_stage.io.stall := execute_stage_1.io.memory_use_flush
+	// read_stage.io.stall := execute_stage_1.io.memory_use_flush
+	// execute_stage_1.io.stall :=  execute_stage_1.io.memory_use_flush
+
+	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush 
 	decode_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
 	read_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
 	execute_stage_1.io.flush := execute_stage_1.io.memory_use_flush
 
 	when(io.execute) {
-		when(execute_stage_1.io.program_pointer_jump_flush || execute_stage_1.io.memory_use_flush) {
+		when(execute_stage_1.io.program_pointer_jump_flush ||execute_stage_1.io.memory_use_flush ) {
 			program_pointer := execute_stage_1.io.program_pointer_target
 		}.otherwise {
 			when(read_stage.io.raw_hazard_flush) {
 				program_pointer := read_stage.io.program_pointer_target
 			}.otherwise {
-				program_pointer := program_pointer + 4.U
+				when(execute_stage_1.io.memory_use_flush){
+					program_pointer := program_pointer
+				}.otherwise{
+					program_pointer := program_pointer + 4.U
+				}
+			
 			}
 		}
 	}
@@ -90,6 +104,7 @@ class Core() extends Module {
 	execute_stage_2.io.instruction_pointer := execute_stage_1.io.next_instruction_pointer
 	execute_stage_2.io.valid := execute_stage_1.io.next_valid
 	execute_stage_2.io.previous_out := execute_stage_1.io.out
+	execute_stage_2.io.stall := false.B;
 
 	execute_stage_2.io.memory_read_value := io.memory_read_value
 
@@ -118,6 +133,7 @@ class Core() extends Module {
 	write_stage.io.instruction := execute_stage_2.io.next_instruction
 	write_stage.io.value := execute_stage_2.io.out
 	write_stage.io.valid := execute_stage_2.io.next_valid
+	write_stage.io.stall := false.B
 
 	registers.io.write_enable := write_stage.io.register_write
 	registers.io.write_address := write_stage.io.register_address
@@ -126,66 +142,66 @@ class Core() extends Module {
 	when(io.execute) {
 		printf("Program Pointer: %d\n", program_pointer);
 
-		// printf("\n\n\n=== Fetch ===\n");
-		// printf("Program Pointer: %d\n", program_pointer);
-		// printf("Data: %b\n", fetch_stage.io.instruction);
-		// printf("Valid: %b\n", fetch_stage.io.next_valid);
+		printf("\n\n\n=== Fetch ===\n");
+		printf("Program Pointer: %d\n", program_pointer);
+		printf("Data: %b\n", fetch_stage.io.instruction);
+		printf("Valid: %b\n", fetch_stage.io.next_valid);
 
-		// printf("=== Decode ===\n");
-		// printf("Opcode: %b\n", decode_stage.io.decoded.opcode);
-		// printf("Immediate: %b\n", decode_stage.io.decoded.immediate);
-		// printf("Rd: %d\n", decode_stage.io.decoded.rd);
-		// printf("Rs1: %d\n", decode_stage.io.decoded.rs1);
-		// printf("Rs2: %d\n", decode_stage.io.decoded.rs2);
-		// printf("Valid: %b\n", decode_stage.io.next_valid);
+		printf("=== Decode ===\n");
+		printf("Opcode: %b\n", decode_stage.io.decoded.opcode);
+		printf("Immediate: %b\n", decode_stage.io.decoded.immediate);
+		printf("Rd: %d\n", decode_stage.io.decoded.rd);
+		printf("Rs1: %d\n", decode_stage.io.decoded.rs1);
+		printf("Rs2: %d\n", decode_stage.io.decoded.rs2);
+		printf("Valid: %b\n", decode_stage.io.next_valid);
 
-		// printf("=== Read ===\n");
-		// printf("Opcode: %b\n", read_stage.io.instruction.opcode);
-		// printf("A: %b\n", read_stage.io.out_a);
-		// printf("B: %b\n", read_stage.io.out_b);
-		// printf("Valid: %b\n", read_stage.io.next_valid);
-		// printf("RAW Flush Requested: %b\n", read_stage.io.raw_hazard_flush);
-		// printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
+		printf("=== Read ===\n");
+		printf("Opcode: %b\n", read_stage.io.instruction.opcode);
+		printf("A: %b\n", read_stage.io.out_a);
+		printf("B: %b\n", read_stage.io.out_b);
+		printf("Valid: %b\n", read_stage.io.next_valid);
+		printf("RAW Flush Requested: %b\n", read_stage.io.raw_hazard_flush);
+		printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
 
-		// printf("=== Execute 1 ===\n");
-		// printf("Opcode: %b\n", execute_stage_1.io.instruction.opcode);
-		// printf("Func3: %b\n", execute_stage_1.io.instruction.func3);
-		// printf("Out: %b\n", execute_stage_1.io.out);
-		// printf("Valid: %b\n", execute_stage_1.io.next_valid);
-		// printf("Read: %b\n", execute_stage_1.io.memory_read);
-		// printf("Read Adress: %b\n", execute_stage_1.io.memory_read_address);
-		// printf("Jump Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
-		// printf("Memory Flush Requested: %b\n", execute_stage_1.io.memory_use_flush);
-		// printf("Jump Target: %d\n", execute_stage_1.io.program_pointer_target);
+		printf("=== Execute 1 ===\n");
+		printf("Opcode: %b\n", execute_stage_1.io.instruction.opcode);
+		printf("Func3: %b\n", execute_stage_1.io.instruction.func3);
+		printf("Out: %b\n", execute_stage_1.io.out);
+		printf("Valid: %b\n", execute_stage_1.io.next_valid);
+		printf("Read: %b\n", execute_stage_1.io.memory_read);
+		printf("Read Adress: %b\n", execute_stage_1.io.memory_read_address);
+		printf("Jump Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
+		printf("Memory Flush Requested: %b\n", execute_stage_1.io.memory_use_flush);
+		printf("Jump Target: %d\n", execute_stage_1.io.program_pointer_target);
 
-		// printf("=== Execute 2 ===\n");
-		// printf("Opcode: %b\n", execute_stage_2.io.instruction.opcode);
-		// printf("Func3: %b\n", execute_stage_2.io.instruction.func3);
-		// printf("Read Value: %b\n", execute_stage_2.io.memory_read_value);
-		// printf("Write: %b\n", execute_stage_2.io.memory_write);
-		// printf("Write Adress: %b\n", execute_stage_2.io.memory_write_address);
-		// printf("Write Value: %b\n", execute_stage_2.io.memory_write_value);
-		// printf("Out: %b\n", execute_stage_2.io.out);
-		// printf("Valid: %b\n", execute_stage_2.io.next_valid);
+		printf("=== Execute 2 ===\n");
+		printf("Opcode: %b\n", execute_stage_2.io.instruction.opcode);
+		printf("Func3: %b\n", execute_stage_2.io.instruction.func3);
+		printf("Read Value: %b\n", execute_stage_2.io.memory_read_value);
+		printf("Write: %b\n", execute_stage_2.io.memory_write);
+		printf("Write Adress: %b\n", execute_stage_2.io.memory_write_address);
+		printf("Write Value: %b\n", execute_stage_2.io.memory_write_value);
+		printf("Out: %b\n", execute_stage_2.io.out);
+		printf("Valid: %b\n", execute_stage_2.io.next_valid);
 
-		// printf("=== Write ===\n");
-		// printf("Opcode: %b\n", write_stage.io.instruction.opcode);
-		// printf("Write: %b\n", write_stage.io.register_write);
-		// printf("Address: %b\n", write_stage.io.register_address);
-		// printf("Value: %b\n", write_stage.io.register_value);
-		// printf("Valid: %b\n", write_stage.io.next_valid);
+		printf("=== Write ===\n");
+		printf("Opcode: %b\n", write_stage.io.instruction.opcode);
+		printf("Write: %b\n", write_stage.io.register_write);
+		printf("Address: %b\n", write_stage.io.register_address);
+		printf("Value: %b\n", write_stage.io.register_value);
+		printf("Valid: %b\n", write_stage.io.next_valid);
 
-		// printf("=== Dump ===\n");
-		// printf("01: %b\n", registers.io.debug_1);
-		// printf("02: %b\n", registers.io.debug_2);
-		// printf("03: %b\n", registers.io.debug_3);
-		// printf("04: %b\n", registers.io.debug_4);
-		// printf("05: %b\n", registers.io.debug_5);
-		// printf("06: %b\n", registers.io.debug_6);
-		// printf("07: %b\n", registers.io.debug_7);
-		// printf("08: %b\n", registers.io.debug_8);
-		// printf("09: %b\n", registers.io.debug_9);
-		// printf("10: %b\n", registers.io.debug_10);		
+		printf("=== Dump ===\n");
+		printf("01: %b\n", registers.io.debug_1);
+		printf("02: %b\n", registers.io.debug_2);
+		printf("03: %b\n", registers.io.debug_3);
+		printf("04: %b\n", registers.io.debug_4);
+		printf("05: %b\n", registers.io.debug_5);
+		printf("06: %b\n", registers.io.debug_6);
+		printf("07: %b\n", registers.io.debug_7);
+		printf("08: %b\n", registers.io.debug_8);
+		printf("09: %b\n", registers.io.debug_9);
+		printf("10: %b\n", registers.io.debug_10);		
 	}
 }
 

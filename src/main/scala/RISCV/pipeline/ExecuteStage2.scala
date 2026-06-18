@@ -122,6 +122,7 @@ class ExecuteStage2() extends Module {
 
 					// SW
 					is("b010".U) {
+						printf("Strongingafdfsadfasdfasdf %d",io.rs2)
 						io.memory_write := true.B
 						io.memory_write_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
 						io.memory_write_value := io.rs2
@@ -132,6 +133,8 @@ class ExecuteStage2() extends Module {
 	}
 
 	val valid = RegInit(false.B)
+	// valid := io.valid && !io.stall
+
 	valid := Mux(io.stall, valid, io.valid)
 	io.next_valid := valid
 }

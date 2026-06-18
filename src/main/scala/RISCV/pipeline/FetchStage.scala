@@ -27,6 +27,7 @@ class FetchStage() extends Module {
 	io.next_instruction_pointer := next_instruction_pointer
 
 	val valid = RegInit(false.B)
+	// valid := io.execute && !io.flush && !io.stall
 	valid := Mux(io.stall, valid, io.execute && !io.flush)
 	io.next_valid := valid
 }

@@ -42,7 +42,7 @@ class ExecuteStage1() extends Module {
 	io.next_instruction_pointer := next_instruction_pointer
 
 	val rs1 = RegInit(0.U(32.W))
-	rs1 := Mux(io.stall, rst1, io.rs1)
+	rs1 := Mux(io.stall, rs1, io.rs1)
 	io.next_rs1 := rs1
 
 	val rs2 = RegInit(0.U(32.W))
@@ -323,8 +323,10 @@ class ExecuteStage1() extends Module {
 			}
 		}
 	}
-	out := Mux(io.stall, out_r, out)
+	out_r := Mux(io.stall, out_r, out)
 	val valid = RegInit(false.B)
 	valid := Mux(io.stall,valid, io.valid && !io.flush)
+	// valid := io.valid && !io.flush && !io.stall  && !io.memory_use_flush
+
 	io.next_valid := valid
 }
