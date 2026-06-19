@@ -73,24 +73,20 @@ class Core() extends Module {
 	// read_stage.io.stall := execute_stage_1.io.memory_use_flush
 	// execute_stage_1.io.stall :=  execute_stage_1.io.memory_use_flush
 
-	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush 
+
+	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
 	decode_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
 	read_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
 	execute_stage_1.io.flush := execute_stage_1.io.memory_use_flush
 
 	when(io.execute) {
-		when(execute_stage_1.io.program_pointer_jump_flush ||execute_stage_1.io.memory_use_flush ) {
+		when(execute_stage_1.io.program_pointer_jump_flush || execute_stage_1.io.memory_use_flush) {
 			program_pointer := execute_stage_1.io.program_pointer_target
 		}.otherwise {
 			when(read_stage.io.raw_hazard_flush) {
 				program_pointer := read_stage.io.program_pointer_target
 			}.otherwise {
-				when(execute_stage_1.io.memory_use_flush){
-					program_pointer := program_pointer
-				}.otherwise{
-					program_pointer := program_pointer + 4.U
-				}
-			
+				program_pointer := program_pointer + 4.U
 			}
 		}
 	}
@@ -127,6 +123,8 @@ class Core() extends Module {
 		}
 	}
 
+
+
 	// ==== WRITE ====
 
 	val write_stage = Module(new WriteStage())
@@ -138,6 +136,13 @@ class Core() extends Module {
 	registers.io.write_enable := write_stage.io.register_write
 	registers.io.write_address := write_stage.io.register_address
 	registers.io.in := write_stage.io.register_value
+
+
+	val rum = (execute_stage_2.io.next_valid.asUInt << execute_stage_2.io.next_instruction.rd) |
+          (execute_stage_1.io.next_valid.asUInt << execute_stage_1.io.next_instruction.rd) |
+          (read_stage.io.next_valid.asUInt << read_stage.io.next_instruction.rd) |
+					(write_stage.io.register_write << write_stage.io.register_address)
+	read_stage.io.rum := rum
 
 	when(io.execute) {
 		printf("Program Pointer: %d\n", program_pointer);
@@ -156,15 +161,20 @@ class Core() extends Module {
 		printf("Valid: %b\n", decode_stage.io.next_valid);
 
 		printf("=== Read ===\n");
-		printf("Opcode: %b\n", read_stage.io.instruction.opcode);
+		printf("Opcode: %b\n", read_stage.io.next_instruction.opcode);
 		printf("A: %b\n", read_stage.io.out_a);
 		printf("B: %b\n", read_stage.io.out_b);
 		printf("Valid: %b\n", read_stage.io.next_valid);
 		printf("RAW Flush Requested: %b\n", read_stage.io.raw_hazard_flush);
 		printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
+		printf("RUM: %b\n", rum);
+		printf("Write Adress: %b\n", read_stage.io.next_instruction.rd);
+		printf("R1: %b\n", read_stage.io.next_instruction.rs1);
+		printf("R2: %b\n", read_stage.io.next_instruction.rs2);
+		printf("RD: %b\n", read_stage.io.next_instruction.rd);
 
 		printf("=== Execute 1 ===\n");
-		printf("Opcode: %b\n", execute_stage_1.io.instruction.opcode);
+		printf("Opcode: %b\n", execute_stage_1.io.next_instruction.opcode);
 		printf("Func3: %b\n", execute_stage_1.io.instruction.func3);
 		printf("Out: %b\n", execute_stage_1.io.out);
 		printf("Valid: %b\n", execute_stage_1.io.next_valid);
@@ -173,9 +183,10 @@ class Core() extends Module {
 		printf("Jump Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
 		printf("Memory Flush Requested: %b\n", execute_stage_1.io.memory_use_flush);
 		printf("Jump Target: %d\n", execute_stage_1.io.program_pointer_target);
+		printf("Write Adress: %b\n", execute_stage_1.io.next_instruction.rd);
 
 		printf("=== Execute 2 ===\n");
-		printf("Opcode: %b\n", execute_stage_2.io.instruction.opcode);
+		printf("Opcode: %b\n", execute_stage_2.io.next_instruction.opcode);
 		printf("Func3: %b\n", execute_stage_2.io.instruction.func3);
 		printf("Read Value: %b\n", execute_stage_2.io.memory_read_value);
 		printf("Write: %b\n", execute_stage_2.io.memory_write);
@@ -183,6 +194,7 @@ class Core() extends Module {
 		printf("Write Value: %b\n", execute_stage_2.io.memory_write_value);
 		printf("Out: %b\n", execute_stage_2.io.out);
 		printf("Valid: %b\n", execute_stage_2.io.next_valid);
+		printf("Write Adress: %b\n", execute_stage_2.io.next_instruction.rd);
 
 		printf("=== Write ===\n");
 		printf("Opcode: %b\n", write_stage.io.instruction.opcode);

@@ -21,7 +21,9 @@ class ReadStage() extends Module {
 
 		val flush = Input(Bool())
 		val stall = Input(Bool())
+		val rum = Input(UInt(32.W)) // register usage_map
 
+		// val raw_hazard_stall = Output(Bool()) // store a pipeline length from here on shift reg of the registes being used or havea mapping come in, the external map might be better
 		val raw_hazard_flush = Output(Bool())
 		val program_pointer_target = Output(UInt(32.W))
 
@@ -39,14 +41,17 @@ class ReadStage() extends Module {
 	}
 
 	rd_1 := Mux(io.stall, rd_1, rd_0)
+	val rum_t = io.rum & "hFFFFFFFE".U
+	// val raw_hazard_flush_r = RegNext(raw_hazard_flush)
+	val raw_hazard_flush = io.valid && (rum_t(io.instruction.rs1) || rum_t(io.instruction.rs2) )
+	// val raw_hazard_flush = io.valid && ((rd_0 =/= 0.U && (rd_0 === io.instruction.rs1 || rd_0 === io.instruction.rs2)) || (rd_1 =/= 0.U && (rd_1 === io.instruction.rs1 || rd_1 === io.instruction.rs2)))
+	val raw_hazard_flush_r = RegNext(raw_hazard_flush)
+	io.raw_hazard_flush := raw_hazard_flush_r
+	// io.program_pointer_target := 0.U
 
-	val raw_hazard_flush = io.valid && ((rd_0 =/= 0.U && (rd_0 === io.instruction.rs1 || rd_0 === io.instruction.rs2)) || (rd_1 =/= 0.U && (rd_1 === io.instruction.rs1 || rd_1 === io.instruction.rs2)))
-	io.raw_hazard_flush := raw_hazard_flush
-	io.program_pointer_target := 0.U
-
-	when(raw_hazard_flush) {
-		io.program_pointer_target := io.instruction_pointer
-	}
+	// when(raw_hazard_flush) {
+		io.program_pointer_target := RegNext(io.instruction_pointer)
+	// }
 	
 	val instruction = RegInit(0.U.asTypeOf(new InstructionBundle()))
 	instruction := io.instruction
@@ -70,6 +75,6 @@ class ReadStage() extends Module {
 	val valid = RegInit(false.B)
 	// valid := io.valid && !io.flush && !io.stall
 
-	valid := Mux(io.stall, valid, io.valid && !io.flush)
-	io.next_valid := valid
+	valid := Mux(io.stall, valid, io.valid && !raw_hazard_flush && !io.flush)
+	io.next_valid := valid 
 }

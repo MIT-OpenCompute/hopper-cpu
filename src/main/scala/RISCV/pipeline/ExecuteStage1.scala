@@ -22,6 +22,7 @@ class ExecuteStage1() extends Module {
 
 		val flush = Input(Bool())
 		val stall = Input(Bool())
+		// val rum = Output(UInt(32.W)) // register usage_map
 
 		val program_pointer_jump_flush = Output(Bool())
 		val memory_use_flush = Output(Bool())
@@ -315,7 +316,7 @@ class ExecuteStage1() extends Module {
 						is("b010".U) {
 							io.memory_read := true.B
 							io.memory_read_address := (io.rs1.zext + io.instruction.immediate.asSInt).asUInt / 4.U
-
+							out := io.rs2
 							interacting_with_memory := true.B
 						}
 					}

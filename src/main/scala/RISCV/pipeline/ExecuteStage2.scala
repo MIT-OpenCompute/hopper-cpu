@@ -19,6 +19,7 @@ class ExecuteStage2() extends Module {
 		val next_valid = Output(Bool())
 
 		val stall = Input(Bool())
+		// val rum = Output(UInt(32.W)) // register usage_map
 
 
 		val memory_read_value = Input(UInt(32.W))

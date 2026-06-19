@@ -12,6 +12,7 @@ class WriteStage() extends Module {
 		val valid = Input(Bool())
 
 		val stall = Input(Bool())
+		// val rum = Output(UInt(32.W)) // register usage_map
 
 		val register_write = Output(Bool())
 		val register_address = Output(UInt(5.W))
