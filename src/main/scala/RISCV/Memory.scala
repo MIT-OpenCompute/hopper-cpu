@@ -22,11 +22,15 @@ class Memory() extends Module {
         val write_vga = Output(Bool())
         val write_value_vga = Output(UInt(32.W))
 
+        val mem_stall = Output(Bool())
         val btns = Input(UInt(4.W))
     })
 
     val memory = SyncReadMem(4096, UInt(32.W))
+    val mem_interface = Module(new MemoryInferface())
+    io.mem_stall := !mem_interface.ready
 
+    val mem_req = Wire(new MemReq)
     io.read_value_1 := memory.readWrite(
       io.address_1,
       io.write_value_1,
@@ -39,12 +43,24 @@ class Memory() extends Module {
     io.write_vga := is_vga && io.write_2
     io.write_value_vga := io.write_value_2
 
-    io.read_value_2 := memory.readWrite(
-      io.address_2,
-      io.write_value_2,
-      (io.read_2 || io.write_2) && !is_vga,
-      io.write_2
-    )
+    // io.read_value_2 := memory.readWrite(
+    //   io.address_2,
+    //   io.write_value_2,
+    //   (io.read_2 || io.write_2) && !is_vga,
+    //   io.write_2
+    // )
+
+    mem_req.address    := io.address_2
+    mem_req.write_data := io.write_value_2
+    mem_req.read       := (io.read_2 || io.write_2) && !is_vga
+    mem_req.write      := io.write_2
+
+    mem_interface.io.req := mem_req
+    // val rdy = mem_interface.io.ready
+
+    mem_interface.io.start := (io.read_2 || io.write_2) && !is_vga
+
+    io.read_value_2 := RegNext(mem_interface.io.data)
 
     val is_btns = RegInit(false.B)
     is_btns := io.read_2 && io.address_2 === 0x12c00000.U // 0x4B000000
@@ -79,7 +95,6 @@ class Memory() extends Module {
 //     val mem_req = Wire(new MemReq)
 
 
-// <<<<<<< HEAD
 //     val memory = SyncReadMem(1024, UInt(32.W))
 //     // loadMemoryFromFileInline(memory, "program.hex")nt(32.W)
 //         val write_vga = Output(Bool())
@@ -130,28 +145,6 @@ class Memory() extends Module {
 //     io.read_value_1 := mem_interface.io.data
 
 
-// =======
-//     val memory = SyncReadMem(4096, UInt(32.W))
-
-//     io.read_value_1 := memory.readWrite(
-//       io.address_1,
-//       io.write_value_1,
-//       io.read_1 || io.write_1,
-//       io.write_1
-//     )
-
-//     val is_vga = io.address_2 >= 0x1000.U
-//     io.address_vga := io.address_2 - 0x1000.U
-//     io.write_vga := is_vga && io.write_2
-//     io.write_value_vga := io.write_value_2
-
-//     io.read_value_2 := memory.readWrite(
-//       io.address_2,
-//       io.write_value_2,
-//       (io.read_2 || io.write_2) && !is_vga,
-//       io.write_2
-//     )
-// >>>>>>> out-of-order
 
 //     val is_btns = RegInit(false.B)
 //     is_btns := io.read_2 && io.address_2 === 0x12c00000.U // 0x4B000000
