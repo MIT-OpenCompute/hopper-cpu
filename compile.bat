@@ -5,5 +5,3 @@
 .\xpack-riscv-none-elf-gcc-15.2.0-1\bin\riscv-none-elf-objcopy.exe -O binary ./programs/hello.elf ./programs/hello.bin
 
 python convert.py
-
-python.exe .\load_program.py .\programs\hello.hex --port COM6
