@@ -6,86 +6,81 @@ import chisel3.util.experimental.loadMemoryFromFileInline
 
 
 
+object MemOp extends ChiselEnum {
+  val LW,LH,LB,LBU,LHU,SW,SH,SB = Value
+}
+
 //Maybe add mark
 class MemReq extends Bundle {
-    val address    = UInt(32.W)
+    val address = UInt(32.W)
     val write_data = UInt(32.W)
-    val read       = Bool() //why tf
-    val write      = Bool()
+    val op =  MemOp()
+    val read = Bool() //why tf
+    val write = Bool()
 }
 
 
 
-class MemoryInferface() extends Module {
-    val io = IO(new Bundle {
-        val req = Input(new MemReq)
-        val start = Input(Bool())
-        val ready = Output(Bool())
-        val valid = Output(Bool())
-        val data = Output(UInt(32.W))
-        
-    })
+class MemoryInterface() extends Module {
+  val io = IO(new Bundle {
+    val icache_req = Input(new MemReq)
+    val icache_start = Input(Bool())
+    val icache_ready = Output(Bool())
+    val icache_valid = Output(Bool())
+    val icache_data  = Output(UInt(32.W))
 
-  val cache = Module(new Cache())
-  val memory = SyncReadMem(1024, UInt(128.W))
+    val dcache_req = Input(new MemReq)
+    val dcache_start = Input(Bool())
+    val dcache_ready = Output(Bool())
+    val dcache_valid = Output(Bool())
+    val dcache_data  = Output(UInt(32.W))
+  })
 
-  when(reset.asBool) {
-    for (i <- 0 until 1024) {
-        memory.write(i.U, 0.U(128.W))
-    }
-}
-  io.data := cache.io.data
-  val mem_req_addr = Wire(UInt(32.W))
-  mem_req_addr := 0.U  // default
-  when(cache.io.wb) { 
-    mem_req_addr := cache.io.wb_addr
-  }.elsewhen(cache.io.miss) {
-    mem_req_addr := cache.io.line_addr
-  }
+  val icache = Module(new ICache())
+  val dcache = Module(new DCache())
+  val arbiter = Module(new CacheArbiter())
+  val memory  = SyncReadMem(1024, UInt(128.W))
 
 
+  icache.io.req := io.icache_req
+  icache.io.start := io.icache_start
+  io.icache_ready := icache.io.ready
+  io.icache_valid := icache.io.done
+  io.icache_data := icache.io.data
+
+  dcache.io.req := io.dcache_req
+  dcache.io.start := io.dcache_start
+  io.dcache_ready := dcache.io.ready
+  io.dcache_valid := dcache.io.done
+  io.dcache_data := dcache.io.data
+
+ 
+  arbiter.io.icache_req.valid := icache.io.miss
+  arbiter.io.icache_req.bits.addr := icache.io.line_addr
+  arbiter.io.icache_req.bits.write := false.B
+  arbiter.io.icache_req.bits.wdata := 0.U
+
+  
+  arbiter.io.dcache_req.valid := dcache.io.miss || dcache.io.wb
+  arbiter.io.dcache_req.bits.addr := Mux(dcache.io.wb, dcache.io.wb_addr, dcache.io.line_addr)
+  arbiter.io.dcache_req.bits.write := dcache.io.wb
+  arbiter.io.dcache_req.bits.wdata := dcache.io.wb_data
+
+ 
   val mem_out = memory.readWrite(
-      mem_req_addr,
-      cache.io.wb_data,
-      cache.io.miss || cache.io.wb,
-      cache.io.wb
-    )
+    arbiter.io.mem_req.bits.addr,
+    arbiter.io.mem_req.bits.wdata,
+    arbiter.io.mem_req.valid,
+    arbiter.io.mem_req.bits.write
+  )
+  arbiter.io.mem_req.ready := true.B  
+  arbiter.io.mem_resp := mem_out
+  arbiter.io.mem_valid := RegNext(arbiter.io.mem_req.valid && !arbiter.io.mem_req.bits.write, false.B)
+
   
+  icache.io.line_result := mem_out
+  icache.io.line_valid := arbiter.io.resp_to_icache
 
-  io.ready := cache.io.ready;
-  // val ready_reg = RegInit(true.B);
-  cache.io.req := io.req
-  cache.io.start := io.start
-  cache.io.line_result := mem_out
-  cache.io.line_valid  := RegNext(cache.io.miss && !cache.io.wb, false.B)
-  
-    //ccache and normal mem here
-
-  val validReg = RegNext(io.start, false.B)
-  io.valid := cache.io.done;
-
-  // io.data := memory.readWrite(
-  //     io.req.address,
-  //     io.req.write_data,
-  //     io.start && (io.req.read || io.req.write),
-  //     io.req.write
-  //   )
-
-  when(true.B) {
-    printf("cycle: start=%d ready=%d valid=%d data=%x | req=[addr=%x wdata=%x r=%d w=%d] | miss=%d wb=%d mem_addr=%x | line_result=%x line_valid=%d\n",
-        io.start,
-        io.ready,
-        io.valid,
-        io.data,
-        io.req.address,
-        io.req.write_data,
-        io.req.read,
-        io.req.write,
-        cache.io.miss,
-        cache.io.wb,
-        mem_req_addr,
-        mem_out,
-        cache.io.line_valid
-    )
-}
+  dcache.io.line_result := mem_out
+  dcache.io.line_valid := arbiter.io.resp_to_dcache
 }

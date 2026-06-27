@@ -6,12 +6,10 @@ import _root_.circt.stage.ChiselStage
 import chisel3.util.experimental.loadMemoryFromFileInline
 
 
-object CacheState extends ChiselEnum {
-  val IDLE,LOOKUP, WRITEBACK, MISS = Value
-}
 
 
-class Cache() extends Module {
+
+class ICache() extends Module {
     val io = IO(new Bundle {
         val req = Input(new MemReq)
         val start = Input(Bool())
@@ -53,6 +51,8 @@ class Cache() extends Module {
 
     def getLineAddr(addr: UInt): UInt = addr(31, LOG_LINE_WIDTH_WORDS + 2)
 
+    
+
 
 
     val meta_array = SyncReadMem(CACHE_SETS, UInt(((32-LOG_CACHE_SETS-LOG_LINE_WIDTH_WORDS)).W)) // status(2bit) + tag
@@ -80,46 +80,21 @@ when(reset.asBool) {
     io.done := false.B
     io.miss := false.B
     io.data := 0.U
-    // when(io.line_valid) {
-    //     data_array.write(cache_index, io.line_result)  
-    //       switch(word_offset){
-    //         is(0.U){
-    //             io.data := io.line_result(31,0)
-    //         }
-    //         is(1.U){
-    //             io.data := io.line_result(63,32)
-    //         }
-    //         is(2.U){
-    //             io.data := io.line_result(95,64)
-    //         }
-    //         is(3.U){
-    //             io.data := io.line_result(127,96)
-    //         }
-    //     }
-        
-    // }
 
-    // memory.readWrite(
-    //   io.req.address,
-    //   io.req.write_data,
-    //   io.start && (io.req.read || io.req.write),
-    //   io.req.write
-    // )
     val meta_out = meta_array.read(cache_index, read_enable) 
     val status = meta_out(meta_out.getWidth-1, meta_out.getWidth-2) 
     val tag = meta_out(meta_out.getWidth-3, 0)    
 
- 
-
-
-
     io.ready:= state === CacheState.IDLE // or hit
     io.wb := false.B
     io.wb_data := data_out
-    io.wb_addr := Cat(tag, cache_index)
-    //  Cat(tag, 0.U((LOG_LINE_WIDTH_WORDS + LOG_CACHE_SETS + 2).W))
+    // FIX 3: wb_addr was missing the lower bits
+    io.wb_addr := Cat(tag, cache_index, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
     io.line_addr:= line_addr
 
+    val words = VecInit(
+    (0 until 4).map(i => data_out(32*i + 31, 32*i))
+    )
 
 switch(state) {
     is(CacheState.IDLE) {
@@ -134,74 +109,93 @@ switch(state) {
             state := CacheState.IDLE
 
             when(current_mem_req.write) {
-                val updated_line = Wire(UInt(128.W))
-                updated_line := data_out
-                printf("WRITING \n")
-                switch(word_offset) {
-                    is(0.U) { updated_line := Cat(data_out(127, 32),  current_mem_req.write_data) }
-                    is(1.U) { updated_line := Cat(data_out(127, 64),  current_mem_req.write_data, data_out(31,  0)) }
-                    is(2.U) { updated_line := Cat(data_out(127, 96),  current_mem_req.write_data, data_out(63,  0)) }
-                    is(3.U) { updated_line := Cat(current_mem_req.write_data, data_out(95, 0)) }
-                }
-                data_array.write(cache_index, updated_line)
-                meta_array.write(cache_index, Cat("b11".U(2.W), cache_tag))
+             
+                io.done := true.B
             }.otherwise {
-                            io.done := true.B
-                                printf("READING HIT READGING HIT %x index: %d  meta: %b\n",data_out, cache_index, meta_out)
+                io.done := true.B
+                printf("READING HIT READGING HIT %x index: %d  meta: %b\n",data_out, cache_index, meta_out)
 
-                // read
-                switch(word_offset) {
-                    is(0.U) { io.data := data_out(31,  0) }
-                    is(1.U) { io.data := data_out(63,  32) }
-                    is(2.U) { io.data := data_out(95,  64) }
-                    is(3.U) { io.data := data_out(127, 96) }
+                val word_data = words(word_offset)
+                switch(current_mem_req.op){
+                    is(MemOp.LW){
+                        io.data := word_data
+                    }
+                    is(MemOp.LH){
+                        when(byte_offset === 0.U){
+                            io.data := ((word_data(15,0)).asSInt.pad(32)).asUInt
+                        }.otherwise{
+                            io.data := ((word_data(31,16)).asSInt.pad(32)).asUInt
+                        }
+                    }
+                    is(MemOp.LB){
+                        when(byte_offset === 0.U){
+                            io.data := word_data(7,0).asSInt.pad(32).asUInt
+                        }.elsewhen(byte_offset === 1.U){
+                            io.data := word_data(15,8).asSInt.pad(32).asUInt
+                        }.elsewhen(byte_offset === 2.U){
+                            io.data := word_data(23,16).asSInt.pad(32).asUInt
+                        }.otherwise{
+                            io.data := word_data(31,24).asSInt.pad(32).asUInt
+                        }
+                    }
                 }
             }
         }.otherwise { // miss
-            when(status === "b11".U) { // valid + dirty
-                state  := CacheState.MISS
-                io.wb  := true.B
-            }.otherwise {    // invalid or not dirty
+            // FIX 1+2: sequence WB before MISS; only raise io.miss in MISS state
+            when(status === "b11".U) { // valid + dirty → writeback first
+                state := CacheState.WRITEBACK
+            }.otherwise {             // invalid or clean → refill directly
                 state := CacheState.MISS
             }
-            io.miss := true.B
+            // io.miss NOT raised here anymore
         }
     }
 
-
+    // FIX 1: new WRITEBACK state — raise wb for one cycle then move to MISS
+    is(CacheState.WRITEBACK) {
+        io.wb := true.B
+        state := CacheState.MISS
+    }
 
     is(CacheState.MISS) {
+        // FIX 2: io.miss only raised here, never alongside io.wb
         when(!io.line_valid) {
             io.miss := true.B
         }.otherwise {
-             //valid not dirty
-
             when(current_mem_req.write) {
-                val updated_line = Wire(UInt(128.W))
-                updated_line := io.line_result
-                switch(word_offset) {
-                    is(0.U) { updated_line := Cat(io.line_result(127, 32),  current_mem_req.write_data) }
-                    is(1.U) { updated_line := Cat(io.line_result(127, 64),  current_mem_req.write_data, io.line_result(31,  0)) }
-                    is(2.U) { updated_line := Cat(io.line_result(127, 96),  current_mem_req.write_data, io.line_result(63,  0)) }
-                    is(3.U) { updated_line := Cat(current_mem_req.write_data, io.line_result(95, 0)) }
-                }
-                printf("WRITING MISS WRITING MISSS %x index: %d \n",updated_line, cache_index)
-                data_array.write(cache_index, updated_line)
-                meta_array.write(cache_index, Cat("b11".U(2.W), cache_tag)) // dirty
+               io.done := true.B
+                  
             }.otherwise {
                 data_array.write(cache_index, io.line_result)
-                meta_array.write(cache_index, Cat("b10".U(2.W), cache_tag))//valid not dirsty
-                switch(word_offset) {
-                    is(0.U) { io.data := io.line_result(31,  0) }
-                    is(1.U) { io.data := io.line_result(63,  32) }
-                    is(2.U) { io.data := io.line_result(95,  64) }
-                    is(3.U) { io.data := io.line_result(127, 96) }
-
+                meta_array.write(cache_index, Cat("b10".U(2.W), cache_tag))//valid not dirty
+                val lwords = VecInit((0 until 4).map(i => io.line_result(32*i + 31, 32*i)))
+                val updated_word = lwords(word_offset)
+                switch(current_mem_req.op){
+                    is(MemOp.LW){
+                        io.data := updated_word
+                    }
+                    is(MemOp.LH){
+                        when(byte_offset === 0.U){
+                            io.data := ((updated_word(15,0)).asSInt.pad(32)).asUInt
+                        }.otherwise{
+                            io.data := ((updated_word(31,16)).asSInt.pad(32)).asUInt
+                        }
+                    }
+                    is(MemOp.LB){
+                        when(byte_offset === 0.U){
+                            io.data := updated_word(7,0).asSInt.pad(32).asUInt
+                        }.elsewhen(byte_offset === 1.U){
+                            io.data := updated_word(15,8).asSInt.pad(32).asUInt
+                        }.elsewhen(byte_offset === 2.U){
+                            io.data := updated_word(23,16).asSInt.pad(32).asUInt
+                        }.otherwise{
+                            io.data := updated_word(31,24).asSInt.pad(32).asUInt
+                        }
+                    }
                 }
-                            io.done := true.B
-
+                io.done := true.B
             }
-            state   := CacheState.IDLE
+            state := CacheState.IDLE
         }
     }
 }   
@@ -227,10 +221,4 @@ switch(state) {
         io.line_addr
     )
 }
-     
-
-     // just need fsm and a way to get data into the cache
-    //ccache and normal mem here figure out div 4
-
-
 }
