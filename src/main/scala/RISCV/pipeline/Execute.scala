@@ -44,6 +44,7 @@ class Execute() extends Module {
   io.memory_stall := false.B
   io.next_instruction.valid := false.B
   io.next_instruction.bits := bundle
+  io.jump_flush := false.B
 
   alu.io.func7 := io.instruction.bits.func7
   alu.io.func3 := io.instruction.bits.func3

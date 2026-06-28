@@ -23,9 +23,6 @@ class Core() extends Module {
 
 
     val registers = Module(new Registers())
-    registers.io.write_enable := false.B
-    registers.io.write_address := 0.U(5.W)
-    registers.io.in := 0.U(32.W)
     registers.io.read_address_a := 0.U(5.W)
     registers.io.read_address_b := 0.U(5.W)
 
@@ -47,8 +44,8 @@ class Core() extends Module {
     fetch.io.f_req.redirect_addr := execute.io.pc_redirect.bits
 
     
-    fetch.io.icache_req := io.icache_req
-    fetch.io.icache_start := io.icache_start
+    io.icache_req := fetch.io.icache_req
+    io.icache_start := fetch.io.icache_start
     fetch.io.icache_ready := io.icache_ready
     fetch.io.icache_valid := io.icache_valid
     fetch.io.icache_data := io.icache_data
@@ -64,17 +61,17 @@ class Core() extends Module {
 
 
     read.io.instruction := decode.io.decoded
-    read.io.register_read_a := registers.io.read_address_a
-    read.io.register_read_b := register.io.read_address_b
-    read.io.register_value_a := register.io.out_a
-    read.io.register_value_b := register.io.out_b
+    registers.io.read_address_a := read.io.register_read_a
+    registers.io.read_address_b := read.io.register_read_b
+    read.io.register_value_a := registers.io.out_a
+    read.io.register_value_b := registers.io.out_b
 
     read.io.flush := jump_flush
-    read,io.stall := memory_stall
+    read.io.stall := memory_stall
 
 
     val rum = (execute.io.next_instruction.valid.asUInt << execute.io.next_instruction.bits.rd) |
-          (read_stage.io.next_instruction.valid.asUInt << read_stage.io.next_instruction.bits.rd) |
+          (read.io.next_instruction.valid.asUInt << read.io.next_instruction.bits.rd) |
           (writeback.io.write_enable.asUInt << writeback.io.write_address)
     read.io.rum := rum
 
@@ -90,8 +87,8 @@ class Core() extends Module {
     execute.io.stall := false.B
     
 
-    execute.io.dcache_req := io.dcache_req
-    execute.io.dcache_start := io.dcache_start
+    io.dcache_req := execute.io.dcache_req
+    io.dcache_start := execute.io.dcache_start
     execute.io.dcache_ready := io.dcache_ready
     execute.io.dcache_valid := io.dcache_valid
     execute.io.dcache_data := io.dcache_data
@@ -103,9 +100,9 @@ class Core() extends Module {
 
     writeback.io.instruction := execute.io.next_instruction
 
-    writeback.io.write_enable := registers.io.write_enable
-    writeback.io.write_address :=registers.io.write_address
-    writeback.io.write_val :=  registers.io.write_val
+    registers.io.write_enable := writeback.io.write_enable
+    registers.io.write_address := writeback.io.write_address
+    registers.io.in := writeback.io.write_val
 
 
 

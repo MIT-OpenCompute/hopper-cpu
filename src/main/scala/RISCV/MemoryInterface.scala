@@ -34,6 +34,13 @@ class MemoryInterface() extends Module {
     val dcache_ready = Output(Bool())
     val dcache_valid = Output(Bool())
     val dcache_data  = Output(UInt(32.W))
+
+    val debug_req = Input(new MemReq)
+    val debug_start = Input(Bool())
+    val ddebug_ready = Output(Bool())
+    val debug_valid = Output(Bool())
+    val debug_data  = Output(UInt(32.W))
+    
   })
 
   val icache = Module(new ICache())
