@@ -23,6 +23,7 @@ class InstructionBundle extends Bundle {
     val func7 = UInt(7.W)
     val reorder_pointer = UInt(8.W)
     val write_mode = WriteMode()
+    val instruction_pointer = UInt(32.W)
 }
 
 class DecodeStage() extends Module {
