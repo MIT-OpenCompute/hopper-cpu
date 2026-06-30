@@ -32,21 +32,59 @@ class Registers() extends Module {
     val read_address_b = Input(UInt(5.W))
     val out_a          = Output(UInt(32.W))
     val out_b          = Output(UInt(32.W))
+
+        val debug_1 = Output(UInt(32.W));
+        val debug_2 = Output(UInt(32.W));
+        val debug_3 = Output(UInt(32.W));
+        val debug_4 = Output(UInt(32.W));
+        val debug_5 = Output(UInt(32.W));
+        val debug_6 = Output(UInt(32.W));
+        val debug_7 = Output(UInt(32.W));
+        val debug_8 = Output(UInt(32.W));
+        val debug_9 = Output(UInt(32.W));
+        val debug_10 = Output(UInt(32.W));
   })
 
-  val REG_COUNT = 32
 
-  val bank_a = SyncReadMem(REG_COUNT, UInt(32.W))
-  val bank_b = SyncReadMem(REG_COUNT, UInt(32.W))
+    val regs = RegInit(VecInit(Seq.fill(32.toInt)(0.U(32.W))))
 
-  when(io.write_enable && io.write_address =/= 0.U) {
-    bank_a.write(io.write_address, io.in)
-    bank_b.write(io.write_address, io.in)
-  }
+    // Dual read ports
+    io.out_a := RegNext(regs(io.read_address_a))
+    io.out_b := RegNext(regs(io.read_address_b))
 
-  val raw_a = bank_a.read(io.read_address_a, true.B)
-  val raw_b = bank_b.read(io.read_address_b, true.B)
+    io.debug_1 := regs(1);
+    io.debug_2 := regs(2);
+    io.debug_3 := regs(3);
+    io.debug_4 := regs(4);
+    io.debug_5 := regs(5);
+    io.debug_5 := regs(5);
+    io.debug_6 := regs(6);
+    io.debug_7 := regs(7);
+    io.debug_8 := regs(8);
+    io.debug_9 := regs(9);
+    io.debug_10 := regs(10);
 
-  io.out_a := Mux(RegNext(io.read_address_a) === 0.U, 0.U, raw_a)
-  io.out_b := Mux(RegNext(io.read_address_b) === 0.U, 0.U, raw_b)
+    // Uncomment to print the register contents every time they are accessed
+    //printf("Regs: [%d]=%d, [%d]=%d, WE=%b, WA=%d, IN=%d\n", io.read_address_a, io.out_a, io.read_address_b, io.out_b, io.write_enable, io.write_address, io.in)
+
+    // Single write port
+    when (io.write_enable && (io.write_address =/= 0.U)) {
+        regs(io.write_address) := io.in
+    }
+
+  // val REG_COUNT = 32
+
+  // val bank_a = SyncReadMem(REG_COUNT, UInt(32.W))
+  // val bank_b = SyncReadMem(REG_COUNT, UInt(32.W))
+
+  // when(io.write_enable && io.write_address =/= 0.U) {
+  //   bank_a.write(io.write_address, io.in)
+  //   bank_b.write(io.write_address, io.in)
+  // }
+
+  // val raw_a = bank_a.read(io.read_address_a, true.B)
+  // val raw_b = bank_b.read(io.read_address_b, true.B)
+
+  // io.out_a := Mux(RegNext(io.read_address_a) === 0.U, 0.U, raw_a)
+  // io.out_b := Mux(RegNext(io.read_address_b) === 0.U, 0.U, raw_b)
 }

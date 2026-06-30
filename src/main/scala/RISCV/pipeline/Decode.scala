@@ -2,6 +2,7 @@ package RISCV
 import chisel3._
 import _root_.circt.stage.ChiselStage
 import scala.math._
+import chisel3.util._ 
 
 class InstructionBundle extends Bundle {
   val rs1 = UInt(5.W)
@@ -18,20 +19,24 @@ class InstructionBundle extends Bundle {
   val pc = UInt(32.W)
 }
 
-class DecodeStage() extends Module {
+class Decode() extends Module {
   val io = IO(new Bundle {
     val f2d     = Input(Valid(new F2D))
     val decoded = Output(Valid(new InstructionBundle()))
     val flush   = Input(Bool())
     val stall   = Input(Bool())
+
+    // val register_read_a = Output(UInt(5.W))
+    // val register_read_b = Output(UInt(5.W))
   })
 
   val decoder = Module(new Decoder())
-  val reg_file = Module(new Registers())
   decoder.io.instruction := io.f2d.bits.inst
 
   val rs1 = RegInit(0.U(5.W))
   val rs2 = RegInit(0.U(5.W))
+  // io.register_read_a := rs1
+  // io.register_read_b := rs2
   val rd  = RegInit(0.U(5.W))
   val immediate = RegInit(0.U(32.W))
   val opcode = RegInit(0.U(7.W))
@@ -53,6 +58,7 @@ class DecodeStage() extends Module {
     pc := io.f2d.bits.pc
     valid := io.f2d.valid
   }
+
 
   io.decoded.bits.rs1 := rs1
   io.decoded.bits.rs2 := rs2

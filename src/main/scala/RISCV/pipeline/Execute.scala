@@ -50,7 +50,13 @@ class Execute() extends Module {
   alu.io.func3 := io.instruction.bits.func3
   alu.io.a := io.instruction.bits.rs1_val
   alu.io.b := 0.U
-
+  // when(true.B){
+  //   printf("EXECUTE %b\n",io.instruction.valid)
+  //   printf("Exec flush %b stall %b" , io.flush, io.stall)
+  //   when(io.instruction.valid){
+  //     printf("EXEC opcode: %b", io.instruction.bits.opcode)
+  //   }
+  // }
   switch(state) {
     is(ExecState.IDLE) {
       when(io.flush) {
@@ -77,6 +83,9 @@ class Execute() extends Module {
             alu.io.b := alu_b
             bundle.rd_val := alu.io.output
             bundle.rd_wen := true.B
+            // when(io.instruction.valid){
+            //     // printf("EXEC ALUUUUUUUUUUUUUUUUUUu: %b", io.instruction.bits.opcode)
+            // }
             
           }
 
@@ -135,6 +144,7 @@ class Execute() extends Module {
             io.dcache_req.address := addr
             io.dcache_req.read := true.B
             io.dcache_req.write := false.B
+                 printf("\n\nLOADING LOADING %x\n\n",addr)
             io.dcache_req.op := MuxLookup(inst.func3, MemOp.LW)(Seq(
               "b000".U -> MemOp.LB,
               "b001".U -> MemOp.LH,
@@ -150,7 +160,9 @@ class Execute() extends Module {
 
           // Store
           is("b0100011".U) {
+            printf("\n\nSTORING STORING %b addr: %x\n\n",inst.rs2_val, addr)
             io.dcache_req.address := addr
+       
             io.dcache_req.write_data := inst.rs2_val
             io.dcache_req.read := false.B
             io.dcache_req.write := true.B
@@ -177,18 +189,19 @@ class Execute() extends Module {
 
     is(ExecState.MEM_WAIT) {
       io.memory_stall := true.B
-
+      io.dcache_start := true.B
       when(io.flush) {
         state := ExecState.IDLE
         valid := false.B
       }.elsewhen(io.dcache_valid) {
         bundle.rd_val := io.dcache_data
         state := ExecState.IDLE
+        printf("\n\nLOADED LOADED %b\n\n",io.dcache_data)
         io.memory_stall := false.B
         io.next_instruction.valid := true.B
         io.next_instruction.bits := bundle
         io.next_instruction.bits.rd_val := io.dcache_data
-        valid = false.B
+        valid := false.B
       }
     }
   }

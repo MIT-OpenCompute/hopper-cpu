@@ -1,75 +1,69 @@
-// package RISCV
+package RISCV
 
-// import chisel3._
-// import _root_.circt.stage.ChiselStage
-// import scala.math._
+import chisel3._
+import _root_.circt.stage.ChiselStage
+import scala.math._
 
-// class Main() extends Module {
-//     val io = IO(new Bundle {
-// 		val execute = Input(Bool())
+class Main() extends Module {
+    val io = IO(new Bundle {
+		val execute = Input(Bool())
 
-//         val flash = Input(Bool())
-// 		val flash_address = Input(UInt(32.W))
-// 		val flash_value = Input(UInt(32.W))
+    val flash = Input(Bool())
+		val flash_address = Input(UInt(32.W))
+		val flash_value = Input(UInt(32.W))
 
-//         val vga_clk = Input(Clock());
-//         val hsync = Output(Bool())
-//         val vsync = Output(Bool())
-//         val rgb = Output(UInt(12.W))
-//         val blanking = Output(Bool())
+    val debug_ready = Output(Bool())
 
-//         val btns = Input(UInt(4.W))
-//     })
 
-//     val memory = Module(new Memory())
-// 	memory.io.read_1 := true.B
-// 	memory.io.write_1 := false.B
-// 	memory.io.write_value_1 := 0.U
+    })
 
-// 	memory.io.btns := io.btns
+    val memory = Module(new MemoryInterface())
+    val core = Module(new Core())
+    io.debug_ready := memory.io.debug_ready
+    memory.io.icache_req := core.io.icache_req
+    memory.io.icache_start := core.io.icache_start
+    core.io.icache_ready := memory.io.icache_ready
+    core.io.icache_valid := memory.io.icache_valid
+    core.io.icache_data := memory.io.icache_data
 
-//     val vga_controller = Module(new VGAController())
-//     vga_controller.io.address := memory.io.address_vga
-//     vga_controller.io.write := memory.io.write_vga
-//     vga_controller.io.write_value := memory.io.write_value_vga
-//     vga_controller.io.read_clk := io.vga_clk
-//     io.hsync := vga_controller.io.hsync
-//     io.vsync := vga_controller.io.vsync
-//     io.rgb := vga_controller.io.rgb
-//     io.blanking := vga_controller.io.blanking
+    memory.io.dcache_req := core.io.dcache_req
+    memory.io.dcache_start := core.io.dcache_start
+    core.io.dcache_ready := memory.io.dcache_ready
+    core.io.dcache_valid := memory.io.dcache_valid
+    core.io.dcache_data := memory.io.dcache_data
 
-//     val core = Module(new Core())
-//     core.io.execute := io.execute
+    core.io.execute := io.execute
+    memory.io.debug_req.address    := io.flash_address
+    memory.io.debug_req.write_data := io.flash_value
+    memory.io.debug_req.op        := MemOp.SW
+    memory.io.debug_req.read      := false.B
+    memory.io.debug_req.write     := true.B
+    memory.io.debug_start         := io.flash && !io.execute
+
     
-//     memory.io.address_1 := core.io.program_memory_adress / 4.U
-//     core.io.program_memory_value := memory.io.read_value_1
 
-//     memory.io.address_2 := core.io.memory_address
-//     memory.io.read_2 := core.io.memory_read
-//     memory.io.write_2 := core.io.memory_write
-//     memory.io.write_value_2 := core.io.memory_write_value
-//     core.io.memory_read_value := memory.io.read_value_2
+    
 
-//     when(!io.execute) {
-// 		printf("Loading...\n");
+  //   when(!io.execute) {
+	// 	printf("Loading...\n");
 
-// 		when(io.flash) {
-// 			memory.io.read_1 := false.B
-// 			memory.io.write_1 := true.B
-// 			memory.io.address_1 := io.flash_address
-// 			memory.io.write_value_1 := io.flash_value
-// 		}
-// 	}
-// }
+	// 	when(io.flash) {
+	// 		memory.io.read_1 := false.B
+	// 		memory.io.write_1 := true.B
+	// 		memory.io.address_1 := io.flash_address
+	// 		memory.io.write_value_1 := io.flash_value
+	// 	}
+	// }
+}
 
-// object Main extends App {
-//     ChiselStage.emitSystemVerilogFile(
-//       new Main(),
-//       firtoolOpts = Array(
-//         "-disable-all-randomization",
-//         "-strip-debug-info",
-//         "-default-layer-specialization=enable"
-//       ),
-//       args = Array("--target-dir", "generated")
-//     )
-// }
+object Main extends App {
+    ChiselStage.emitSystemVerilogFile(
+      new Main(),
+      firtoolOpts = Array(
+        "-disable-all-randomization",
+        "-strip-debug-info",
+        "-default-layer-specialization=enable"
+      ),
+      args = Array("--target-dir", "generated")
+    )
+}

@@ -178,7 +178,7 @@ switch(state) {
                 io.done := true.B
             }.otherwise {
                 io.done := true.B
-                printf("READING HIT READGING HIT %x index: %d  meta: %b\n",data_out, cache_index, meta_out)
+                // printf("READING HIT READGING HIT %x index: %d  meta: %b\n",data_out, cache_index, meta_out)
 
                 val word_data = words(word_offset)
                 switch(current_mem_req.op){
@@ -303,7 +303,7 @@ switch(state) {
                     is(3.U) { updated_line := Cat(updated_word, io.line_result(95, 0)) }
                 }
 
-                printf("WRITING MISS WRITING MISSS %x index: %d \n",updated_line, cache_index)
+                // printf("WRITING MISS WRITING MISSS %x index: %d \n",updated_line, cache_index)
                 data_array.write(cache_index, updated_line)
                 meta_array.write(cache_index, Cat("b11".U(2.W), cache_tag)) // dirty
             }.otherwise {
@@ -358,26 +358,26 @@ switch(state) {
         }
     }
 }   
-  when(true.B) {
-    printf("cycle: state=%d | req=[addr=%x wdata=%x r=%d w=%d] | idx=%x tag=%x word_off=%x | meta=[status=%b tag=%x] | data_out=%x | done=%d miss=%d wb=%d | line_valid=%d line_result=%x | wb_addr=%x line_addr=%x\n",
-        state.asUInt,
-        current_mem_req.address,
-        current_mem_req.write_data,
-        current_mem_req.read,
-        current_mem_req.write,
-        cache_index,
-        cache_tag,
-        word_offset,
-        status,
-        tag,
-        data_out,
-        io.done,
-        io.miss,
-        io.wb,
-        io.line_valid,
-        io.line_result,
-        io.wb_addr,
-        io.line_addr
-    )
-}
+//   when(true.B) {
+//     printf("DCACHE cycle: state=%d | req=[addr=%x wdata=%x r=%d w=%d] | idx=%x tag=%x word_off=%x | meta=[status=%b tag=%x] | data_out=%x | done=%d miss=%d wb=%d | line_valid=%d line_result=%x | wb_addr=%x line_addr=%x\n",
+//         state.asUInt,
+//         current_mem_req.address,
+//         current_mem_req.write_data,
+//         current_mem_req.read,
+//         current_mem_req.write,
+//         cache_index,
+//         cache_tag,
+//         word_offset,
+//         status,
+//         tag,
+//         data_out,
+//         io.done,
+//         io.miss,
+//         io.wb,
+//         io.line_valid,
+//         io.line_result,
+//         io.wb_addr,
+//         io.line_addr
+//     )
+// }
 }
