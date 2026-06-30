@@ -8,79 +8,54 @@ import scala.io.Source
 import java.nio.file.{Files, Paths}
 import java.nio.ByteBuffer
 import chisel3.simulator.PeekPokeAPI.TestableRecord
+import scala.io.Source
 
 class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
-    "Main should execute Store and Load Instructions correctly" in {
-        simulate(new Main()) { dut =>
-            // Load hex file, one instruction per line
-            val instructions = Source
-                .fromFile("./programs/hello.hex")
-                .getLines()
-                .filter(_.trim.nonEmpty)
-                .map(line => java.lang.Long.parseLong(line.trim, 16))
-                .toSeq
+    // "Core should execute program.hex correctly" in {
+    //     simulate(new Core()) { dut =>
+	// 		val path = getClass.getResource("/program.hex").getPath
+    //         val lines = Source.fromFile(path).getLines().toList
 
-            dut.io.debug_write.poke(true.B)
+	// 		dut.io.flash.poke(true.B)
 
-            instructions.zipWithIndex.foreach { case (instr, idx) =>
-                dut.io.debug_write_address.poke(idx.U)
-                dut.io.debug_write_data.poke(instr.U(32.W))
-                dut.clock.step(1)
-            }
+    //         lines.zipWithIndex.foreach { case (line, index) =>
+	// 			val value = java.lang.Long.parseLong(line.trim, 16)
 
-            dut.io.debug_write.poke(false.B)
-            dut.clock.step(1)
+	// 			dut.io.flash_address.poke((index * 4).U)
+	// 			dut.io.flash_value.poke(value.U)
+	            
+	// 			dut.clock.step(1)
+	// 		}	
 
-            dut.io.execute.poke(true.B)
-            dut.clock.step(64)
-        }
-    }
+	// 		dut.io.flash.poke(false.B)
 
-    // "Main should execute Store and Load Instructions correctly" in {
-    //     simulate(new Main()) { dut =>
-    //         dut.io.debug_write.poke(true.B)
+	// 		dut.io.execute.poke(true.B)
 
-    //         dut.io.debug_write_address.poke(0.U)
-    //         dut.io.debug_write_data.poke(0x00004137L.U)
-    //         dut.clock.step(1)
-
-    //         dut.io.debug_write_address.poke(1.U)
-    //         dut.io.debug_write_data.poke(0x000041b7L.U)
-    //         dut.clock.step(1)
-
-    //         dut.io.debug_write_address.poke(2.U)
-    //         dut.io.debug_write_data.poke(0x00408093L.U)
-    //         dut.clock.step(1)
-
-    //         dut.io.debug_write_address.poke(3.U)
-    //         dut.io.debug_write_data.poke(0x00218133L.U)
-    //         dut.clock.step(1)
-
-    //         dut.io.debug_write_address.poke(4.U)
-    //         dut.io.debug_write_data.poke(0x00110023L.U)
-    //         dut.clock.step(1)
-
-    //         dut.io.debug_write_address.poke(5.U)
-    //         dut.io.debug_write_data.poke(0xff5ff06fL.U)
-    //         dut.clock.step(1)
-
-    //         // dut.io.debug_write_address.poke(0.U)
-    //         // dut.io.debug_write_data.poke(0b000000000111_00000_000_00001_0010011.U) // ADDI
-    //         // dut.clock.step(1)
-
-    //         // dut.io.debug_write_address.poke(1.U)
-    //         // dut.io.debug_write_data.poke(0b0000000_00001_00000_010_00000_0100011.U) // SW
-    //         // dut.clock.step(1)
-
-    //         // dut.io.debug_write_address.poke(2.U)
-    //         // dut.io.debug_write_data.poke(0b000000000000_00000_010_00010_0000011.U) // LW
-    //         // dut.clock.step(1)
-
-    //         dut.io.debug_write.poke(false.B)
-    //         dut.clock.step(1)
-
-    //         dut.io.execute.poke(true.B)
-    //         dut.clock.step(24)
+    //         dut.clock.step(16)
     //     }
     // }
+
+	"Main should execute memory.hex correctly" in {
+        simulate(new Main()) { dut =>
+			val path = getClass.getResource("/memory.hex").getPath
+            val lines = Source.fromFile(path).getLines().toList
+
+			dut.io.flash.poke(true.B)
+
+            lines.zipWithIndex.foreach { case (line, index) =>
+				val value = java.lang.Long.parseLong(line.trim, 16)
+
+				dut.io.flash_address.poke(index.U)
+				dut.io.flash_value.poke(value.U)
+	            
+				dut.clock.step(1)
+			}	
+
+			dut.io.flash.poke(false.B)
+
+			dut.io.execute.poke(true.B)
+
+            dut.clock.step(16)
+        }
+    }
 }

@@ -4,6 +4,10 @@ import chisel3._
 import _root_.circt.stage.ChiselStage
 import scala.math._
 
+object WriteMode extends ChiselEnum {
+    val None, Register, Memory = Value
+}
+
 class InstructionBundle extends Bundle {
     val rs1 = UInt(5.W)
     val rs1_value = UInt(32.W)
@@ -18,6 +22,7 @@ class InstructionBundle extends Bundle {
     val func3 = UInt(3.W)
     val func7 = UInt(7.W)
     val reorder_pointer = UInt(8.W)
+    val write_mode = WriteMode()
 }
 
 class DecodeStage() extends Module {
