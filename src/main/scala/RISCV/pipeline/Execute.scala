@@ -160,7 +160,7 @@ class Execute() extends Module {
 
           // Store
           is("b0100011".U) {
-            printf("\n\nSTORING STORING %b addr: %x\n\n",inst.rs2_val, addr)
+            printf("\n\nSTORING STORING %x addr: %x\n\n",inst.rs2_val, addr)
             io.dcache_req.address := addr
        
             io.dcache_req.write_data := inst.rs2_val
@@ -189,14 +189,14 @@ class Execute() extends Module {
 
     is(ExecState.MEM_WAIT) {
       io.memory_stall := true.B
-      io.dcache_start := true.B
+      // io.dcache_start := true.B
       when(io.flush) {
         state := ExecState.IDLE
         valid := false.B
       }.elsewhen(io.dcache_valid) {
         bundle.rd_val := io.dcache_data
         state := ExecState.IDLE
-        printf("\n\nLOADED LOADED %b\n\n",io.dcache_data)
+        printf("\n\nLOADED LOADED %x\n\n",io.dcache_data)
         io.memory_stall := false.B
         io.next_instruction.valid := true.B
         io.next_instruction.bits := bundle

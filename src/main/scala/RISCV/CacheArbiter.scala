@@ -37,10 +37,10 @@ class CacheArbiter() extends Module {
     val idle = !serving_icache && !serving_dcache
 
     when(idle) {
-      when(icache_pending) {
-        serving_icache := true.B
-      }.elsewhen(dcache_pending) {
+      when(dcache_pending) {
         serving_dcache := true.B
+      }.elsewhen(icache_pending) {
+        serving_icache := true.B
       }
     }
 

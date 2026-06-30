@@ -306,6 +306,7 @@ switch(state) {
                 // printf("WRITING MISS WRITING MISSS %x index: %d \n",updated_line, cache_index)
                 data_array.write(cache_index, updated_line)
                 meta_array.write(cache_index, Cat("b11".U(2.W), cache_tag)) // dirty
+                io.done := true.B
             }.otherwise {
                 data_array.write(cache_index, io.line_result)
                 meta_array.write(cache_index, Cat("b10".U(2.W), cache_tag))//valid not dirty
@@ -358,26 +359,26 @@ switch(state) {
         }
     }
 }   
-//   when(true.B) {
-//     printf("DCACHE cycle: state=%d | req=[addr=%x wdata=%x r=%d w=%d] | idx=%x tag=%x word_off=%x | meta=[status=%b tag=%x] | data_out=%x | done=%d miss=%d wb=%d | line_valid=%d line_result=%x | wb_addr=%x line_addr=%x\n",
-//         state.asUInt,
-//         current_mem_req.address,
-//         current_mem_req.write_data,
-//         current_mem_req.read,
-//         current_mem_req.write,
-//         cache_index,
-//         cache_tag,
-//         word_offset,
-//         status,
-//         tag,
-//         data_out,
-//         io.done,
-//         io.miss,
-//         io.wb,
-//         io.line_valid,
-//         io.line_result,
-//         io.wb_addr,
-//         io.line_addr
-//     )
-// }
+  when(true.B) {
+    printf("DCACHE cycle: state=%d | req=[addr=%x wdata=%x r=%d w=%d] | idx=%x tag=%x word_off=%x | meta=[status=%b tag=%x] | data_out=%x | done=%d miss=%d wb=%d | line_valid=%d line_result=%x | wb_addr=%x line_addr=%x\n",
+        state.asUInt,
+        current_mem_req.address,
+        current_mem_req.write_data,
+        current_mem_req.read,
+        current_mem_req.write,
+        cache_index,
+        cache_tag,
+        word_offset,
+        status,
+        tag,
+        data_out,
+        io.done,
+        io.miss,
+        io.wb,
+        io.line_valid,
+        io.line_result,
+        io.wb_addr,
+        io.line_addr
+    )
+}
 }

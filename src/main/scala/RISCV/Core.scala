@@ -42,8 +42,13 @@ class Core() extends Module {
     val jump_flush = execute.io.jump_flush
 
 
+
     val fetch_stall = raw_stall || memory_stall || !io.execute
-    val fetch_op = Mux(jump_flush,FetchOp.RD, Mux(fetch_stall, FetchOp.ST, FetchOp.DQ))
+val fetch_stall_prev = RegNext(fetch_stall, true.B)
+val fetch_op = Mux(jump_flush, FetchOp.RD,
+               Mux(fetch_stall, FetchOp.ST,
+               Mux(fetch_stall_prev, FetchOp.ST, FetchOp.DQ)))  // hold one extra cycle on release
+
     fetch.io.f_req.fetch_op := fetch_op
     fetch.io.f_req.redirect_addr := execute.io.pc_redirect.bits
     fetch.io.execute := io.execute
@@ -109,7 +114,7 @@ class Core() extends Module {
     registers.io.write_address := writeback.io.write_address
     registers.io.in := writeback.io.write_val
 
-    io.icache_start := fetch.io.icache_start && !memory_stall
+    io.icache_start := fetch.io.icache_start
 
 
 

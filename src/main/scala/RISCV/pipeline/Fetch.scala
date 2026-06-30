@@ -1,10 +1,9 @@
 package RISCV
-
 import chisel3._
 import chisel3.util._
-// Note: this was kinda just translated from minispec to scala. I don't love the design but its also verified correct.
+
 object FetchOp extends ChiselEnum {
-  val ST, RD, DQ = Value // Dequeue, Stall, Redirect
+  val ST, RD, DQ = Value // Stall, Redirect, Dequeue
 }
 
 class FetchReq extends Bundle {
@@ -22,7 +21,6 @@ class Fetch() extends Module {
     val f_req        = Input(new FetchReq)
     val f2d          = Output(Valid(new F2D))
     val execute      = Input(Bool())
-
     val icache_req   = Output(new MemReq)
     val icache_start = Output(Bool())
     val icache_ready = Input(Bool())
@@ -30,63 +28,82 @@ class Fetch() extends Module {
     val icache_data  = Input(UInt(32.W))
   })
 
-  val pc           = RegInit(0.U(32.W))
-  val ignoreInstr  = RegInit(false.B)
-  val icache_valid_reg = RegNext(io.icache_valid, false.B)
-
-
-  io.f2d.valid      := io.icache_valid && !ignoreInstr
-  io.f2d.bits.pc   := pc
-  io.f2d.bits.inst := io.icache_data
-
-
-  io.icache_req.address    := pc
-  io.icache_req.op         := MemOp.LW
+  val pc = RegInit(0.U(32.W))
+  val ignoreInstr = RegInit(false.B)
+  val was_dq = RegInit(false.B)  
+  val f2d_reg = RegInit(0.U.asTypeOf(new F2D))
+  val f2d_held = RegInit(false.B) 
+  io.icache_req.address := pc
+  io.icache_req.op := MemOp.LW
   io.icache_req.write_data := 0.U
-  io.icache_req.read       := true.B
-  io.icache_req.write      := false.B
-  io.icache_start          := false.B
+  io.icache_req.read := true.B
+  io.icache_req.write := false.B
+  io.icache_start := false.B
 
-  when(io.f_req.fetch_op =/= FetchOp.RD && icache_valid_reg) {
-    ignoreInstr := false.B
+
+  io.f2d.valid := f2d_held && !ignoreInstr
+  io.f2d.bits := f2d_reg
+
+  when(io.icache_valid) {
+    f2d_reg.pc := pc
+    f2d_reg.inst := io.icache_data
+    f2d_held := true.B
+    when(was_dq) {
+      pc := pc + 4.U
+      was_dq := false.B
+    }
+    when(io.f_req.fetch_op =/= FetchOp.RD) {
+      ignoreInstr := false.B
+    }
   }
 
-  when(false.B){
-    printf("=== FETCH === pc=%x op=%d ignore=%b | icache_start=%b icache_ready=%b icache_valid=%b icache_valid_reg=%b | f2d_valid=%b f2d_pc=%x f2d_inst=%x\n",
-    pc,
-    io.f_req.fetch_op.asUInt,
-    ignoreInstr,
-    io.icache_start,
-    io.icache_ready,
-    io.icache_valid,
-    icache_valid_reg,
-    io.f2d.valid,
-    io.f2d.bits.pc,
-    io.f2d.bits.inst)
-  }
-  when(io.execute){
+  when(io.execute) {
     switch(io.f_req.fetch_op) {
 
-      is(FetchOp.DQ) { 
-        io.icache_req.address := pc
-        io.icache_start := io.icache_ready
-        when(icache_valid_reg) {
-          pc := pc + 4.U
-          io.icache_req.address := pc + 4.U
+      is(FetchOp.DQ) {
+
+        when(f2d_held) {
+          f2d_held := false.B
+          was_dq := true.B
+        }
+      
+        when(!f2d_held) {
+          io.icache_req.address := pc
+          io.icache_start := io.icache_ready
         }
       }
 
-      is(FetchOp.ST) { 
-        io.icache_req.address := pc
-        io.icache_start       := true.B
+      is(FetchOp.ST) {
+
+        when(!f2d_held) {
+          io.icache_req.address := pc
+          io.icache_start := io.icache_ready
+        }
       }
 
-      is(FetchOp.RD) { 
-        pc                    := io.f_req.redirect_addr
+      is(FetchOp.RD) {
+        pc := io.f_req.redirect_addr
         io.icache_req.address := io.f_req.redirect_addr
-        io.icache_start       := io.icache_ready
-        ignoreInstr           := true.B
+        io.icache_start := io.icache_ready
+        ignoreInstr := true.B
+        was_dq := false.B
+        f2d_held := false.B
       }
     }
+  }
+
+  when(true.B) {
+    printf("=== FETCH === pc=%x op=%d ignore=%b held=%b was_dq=%b | icache_start=%b icache_ready=%b icache_valid=%b | f2d_valid=%b f2d_pc=%x f2d_inst=%x\n",
+      pc,
+      io.f_req.fetch_op.asUInt,
+      ignoreInstr,
+      f2d_held,
+      was_dq,
+      io.icache_start,
+      io.icache_ready,
+      io.icache_valid,
+      io.f2d.valid,
+      io.f2d.bits.pc,
+      io.f2d.bits.inst)
   }
 }

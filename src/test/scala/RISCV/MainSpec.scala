@@ -51,7 +51,7 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
 				dut.io.flash.poke(true.B)
 				dut.io.flash_address.poke(addr.U)
 				dut.io.flash_value.poke(value.U)
-				dut.clock.step()  // one cycle is enough — debug_valid fires immediately
+				dut.clock.step()  
 				assert(dut.io.debug_ready.peek().litToBoolean, s"debug not ready at addr=0x${addr.toHexString}")
 				dut.io.flash.poke(false.B)
 				dut.clock.step()
@@ -59,7 +59,7 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
 			dut.clock.step(2)
 			dut.io.execute.poke(true.B)
-			dut.clock.step(30)  // enough cycles to run the program
+			dut.clock.step(30)  
 		}
 	}
 }
