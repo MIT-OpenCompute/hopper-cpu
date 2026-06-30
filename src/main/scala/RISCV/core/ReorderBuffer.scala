@@ -4,6 +4,17 @@ import chisel3._
 import chisel3.util._
 import _root_.circt.stage.ChiselStage
 
+/*
+The reorder buffer is meant to track the true ordering of instructions so we can make sure that our modifcations to the persistent sate of the processor anr memory
+are in order. Otherwise, exceptions would leave the processor in a non deterministic state.
+
+The buffer is a cyclic buffer that tracks a head and tail pointer. We have the size of the buffer hardcoded at 256 for now. Each entry in the buffer corresponds
+to an instruction and contains information about how to write to memory or registers. The entry also tracks wether the instruction is complete. The reorder buffer
+"retires" completed instructions at the tail in order. When an instruciton is retired it requests a write to the registers or memory.
+
+The reorder buffer can fill up, hence the "full" signal. This would cause the reorder buffer to stall. The reorder buffer also must pause retiring when waiting for the
+active memory write to finish.
+ */
 class BufferEntry extends Bundle {
     val value = UInt(32.W)
     val rd = UInt(32.W)
