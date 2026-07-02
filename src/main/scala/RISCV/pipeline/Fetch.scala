@@ -61,7 +61,7 @@ class Fetch() extends Module {
       f2d_reg.inst := io.icache_data
       f2d_held     := true.B
       when(was_dq) {
-        f2d_reg.pc := pc + 4.U
+        f2d_reg.pc := pc
         pc         := pc + 4.U
         was_dq     := false.B
       }.otherwise {

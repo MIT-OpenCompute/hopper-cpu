@@ -105,8 +105,8 @@ class Execute() extends Module {
             io.pc_redirect.bits := target
             bundle.rd_wen := false.B
             io.jump_flush := take_branch
-              printf("BRANCH rs1=%x rs2=%x take=%b target=%x flush=%b\n",
-    inst.rs1_val, inst.rs2_val, take_branch, target, io.jump_flush)
+              printf("BRANCH rs1=%x rs2=%x take=%b target=%x flush=%b imm= %x pc=%x\n",
+    inst.rs1_val, inst.rs2_val, take_branch, target, io.jump_flush, inst.immediate, inst.pc)
            
           }
 
