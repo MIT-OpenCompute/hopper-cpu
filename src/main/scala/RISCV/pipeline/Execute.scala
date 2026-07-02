@@ -57,6 +57,7 @@ class Execute() extends Module {
   //     printf("EXEC opcode: %b", io.instruction.bits.opcode)
   //   }
   // }
+  val flush_delay = RegNext(io.jump_flush, false.B)
   switch(state) {
     is(ExecState.IDLE) {
       when(io.flush) {
@@ -83,6 +84,8 @@ class Execute() extends Module {
             alu.io.b := alu_b
             bundle.rd_val := alu.io.output
             bundle.rd_wen := true.B
+             printf("ALU pc=%x rd=%d rs1=%x rs2_val=%x imm=%x result=%x\n",
+    inst.pc, inst.rd, inst.rs1_val, inst.rs2_val, inst.immediate, alu.io.output)
             // when(io.instruction.valid){
             //     // printf("EXEC ALUUUUUUUUUUUUUUUUUUu: %b", io.instruction.bits.opcode)
             // }
@@ -98,10 +101,12 @@ class Execute() extends Module {
             val lt_eq_sel = Mux(inst.func3(2), lt_sel, eq)
             val take_branch = lt_eq_sel ^ inst.func3(0)
             val target = Mux(take_branch, pc_plus_imm, pc_plus_4)
-            io.pc_redirect.valid := true.B
+            io.pc_redirect.valid := take_branch
             io.pc_redirect.bits := target
             bundle.rd_wen := false.B
-            io.jump_flush := true.B
+            io.jump_flush := take_branch
+              printf("BRANCH rs1=%x rs2=%x take=%b target=%x flush=%b\n",
+    inst.rs1_val, inst.rs2_val, take_branch, target, io.jump_flush)
            
           }
 

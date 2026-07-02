@@ -28,32 +28,48 @@ class Fetch() extends Module {
     val icache_data  = Input(UInt(32.W))
   })
 
-  val pc = RegInit(0.U(32.W))
+  val pc          = RegInit(0.U(32.W))
   val ignoreInstr = RegInit(false.B)
-  val was_dq = RegInit(false.B)  
-  val f2d_reg = RegInit(0.U.asTypeOf(new F2D))
-  val f2d_held = RegInit(false.B) 
-  io.icache_req.address := pc
-  io.icache_req.op := MemOp.LW
+  val was_dq      = RegInit(false.B)
+  val f2d_reg     = RegInit(0.U.asTypeOf(new F2D))
+  val f2d_held    = RegInit(false.B)
+  val in_flight   = RegInit(false.B)
+
+  // defaults
+  io.icache_req.address    := pc
+  io.icache_req.op         := MemOp.LW
   io.icache_req.write_data := 0.U
-  io.icache_req.read := true.B
-  io.icache_req.write := false.B
-  io.icache_start := false.B
+  io.icache_req.read       := true.B
+  io.icache_req.write      := false.B
+  io.icache_start          := false.B
 
-
+  // f2d output: stable until DQ clears it
   io.f2d.valid := f2d_held && !ignoreInstr
-  io.f2d.bits := f2d_reg
+  io.f2d.bits  := f2d_reg
 
+  // track in-flight requests
+  when(io.icache_start) {
+    in_flight := true.B
+  }
   when(io.icache_valid) {
-    f2d_reg.pc := pc
-    f2d_reg.inst := io.icache_data
-    f2d_held := true.B
-    when(was_dq) {
-      pc := pc + 4.U
-      was_dq := false.B
-    }
-    when(io.f_req.fetch_op =/= FetchOp.RD) {
+    in_flight := false.B
+  }
+
+  // latch icache response, discarding stale pre-redirect responses
+  when(io.icache_valid && io.f_req.fetch_op =/= FetchOp.RD) {
+    when(!ignoreInstr) {
+      f2d_reg.inst := io.icache_data
+      f2d_held     := true.B
+      when(was_dq) {
+        f2d_reg.pc := pc + 4.U
+        pc         := pc + 4.U
+        was_dq     := false.B
+      }.otherwise {
+        f2d_reg.pc := pc
+      }
+    }.otherwise {
       ignoreInstr := false.B
+      was_dq      := false.B
     }
   }
 
@@ -61,44 +77,45 @@ class Fetch() extends Module {
     switch(io.f_req.fetch_op) {
 
       is(FetchOp.DQ) {
-
+        // clear held when decode is consuming (not stalled)
         when(f2d_held) {
           f2d_held := false.B
-          was_dq := true.B
+          was_dq   := true.B
         }
-      
-        when(!f2d_held) {
+        // issue next request when nothing in flight
+        when(!in_flight) {
           io.icache_req.address := pc
-          io.icache_start := io.icache_ready
+          io.icache_start       := io.icache_ready
         }
       }
 
       is(FetchOp.ST) {
-
-        when(!f2d_held) {
+        when(!f2d_held && !in_flight) {
           io.icache_req.address := pc
-          io.icache_start := io.icache_ready
+          io.icache_start       := io.icache_ready
         }
       }
 
       is(FetchOp.RD) {
-        pc := io.f_req.redirect_addr
+        pc                    := io.f_req.redirect_addr
         io.icache_req.address := io.f_req.redirect_addr
-        io.icache_start := io.icache_ready
-        ignoreInstr := true.B
-        was_dq := false.B
-        f2d_held := false.B
+        io.icache_start       := io.icache_ready
+        ignoreInstr           := true.B
+        was_dq                := false.B
+        f2d_held              := false.B
+        in_flight             := false.B
       }
     }
   }
 
   when(true.B) {
-    printf("=== FETCH === pc=%x op=%d ignore=%b held=%b was_dq=%b | icache_start=%b icache_ready=%b icache_valid=%b | f2d_valid=%b f2d_pc=%x f2d_inst=%x\n",
+    printf("=== FETCH === pc=%x op=%d ignore=%b held=%b was_dq=%b in_flight=%b | icache_start=%b icache_ready=%b icache_valid=%b | f2d_valid=%b f2d_pc=%x f2d_inst=%x\n",
       pc,
       io.f_req.fetch_op.asUInt,
       ignoreInstr,
       f2d_held,
       was_dq,
+      in_flight,
       io.icache_start,
       io.icache_ready,
       io.icache_valid,
