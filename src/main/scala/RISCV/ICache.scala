@@ -200,7 +200,7 @@ switch(state) {
         }
     }
 }   
-  when(true.B) {
+  when(false.B) {
     printf("ICACHE cycle: state=%d | req=[addr=%x wdata=%x r=%d w=%d] | idx=%x tag=%x word_off=%x | meta=[status=%b tag=%x] | data_out=%x | data=%x done=%d miss=%d wb=%d | line_valid=%d line_result=%x | wb_addr=%x line_addr=%x\n",
         state.asUInt,
         current_mem_req.address,

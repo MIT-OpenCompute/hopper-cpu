@@ -61,9 +61,12 @@ class Fetch() extends Module {
       f2d_reg.inst := io.icache_data
       f2d_held     := true.B
       when(was_dq) {
-        f2d_reg.pc := pc
+        f2d_reg.pc := pc 
         pc         := pc + 4.U
         was_dq     := false.B
+        when(in_flight){
+          ignoreInstr := true.B
+        }
       }.otherwise {
         f2d_reg.pc := pc
       }
@@ -108,7 +111,7 @@ class Fetch() extends Module {
     }
   }
 
-  when(true.B) {
+  when(false.B) {
     printf("=== FETCH === pc=%x op=%d ignore=%b held=%b was_dq=%b in_flight=%b | icache_start=%b icache_ready=%b icache_valid=%b | f2d_valid=%b f2d_pc=%x f2d_inst=%x\n",
       pc,
       io.f_req.fetch_op.asUInt,
