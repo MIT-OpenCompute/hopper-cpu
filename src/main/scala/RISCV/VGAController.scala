@@ -32,7 +32,7 @@ class VGAController extends Module {
     val memory = SyncReadMem(320 * 240, UInt(8.W))
 
     when(io.write) {
-        memory.write(io.address, io.write_value)
+        memory.write(io.address >> 2, io.write_value)
 
         printf("\n\nWRITING TO VGA: %d %b\n\n", io.address, io.write_value);
     }

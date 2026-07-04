@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     dut->io_flash = 0;
     dut->io_flash_address = 0;
     dut->io_flash_value = 0;
-    dut->io_btns = 0;
+    // dut->io_btns = 0;
 
     dut->reset = 1;
     dut->clock = 0;
@@ -49,30 +49,48 @@ int main(int argc, char** argv) {
     std::string line;
     int address = 0;
 
+    dut->io_execute = 0;
+    dut->io_flash   = 0;
+
+    for (int i = 0; i < 2; i++) {
+        dut->clock = 0; dut->eval();
+        dut->clock = 1; dut->eval();
+    }
+
+
+    int index = 0;
     while (std::getline(file, line)) {
         if (line.empty()) continue;
-
         uint32_t value = std::stoul(line, nullptr, 16);
+        uint32_t addr  = index * 4;  // byte address, matches Chisel: addr = index * 4
 
-        dut->io_flash = 1;
-        dut->io_flash_address = address;
-        dut->io_flash_value = value;
+        printf("flashing addr=0x%x value=0x%x\n", addr, value);
 
-        printf("Writing %x at %d\n", value, address);
+        // step 1: flash=true
+        dut->io_flash         = 1;
+        dut->io_flash_address = addr;
+        dut->io_flash_value   = value;
+        dut->clock = 0; dut->eval();
+        dut->clock = 1; dut->eval();
 
-        dut->clock = 1;
-        dut->io_vga_clk = 1;
-        dut->eval();
-        dut->clock = 0;
-        dut->io_vga_clk = 0;
-        dut->eval();
+        // step 2: flash=false
+        dut->io_flash         = 0;
+        dut->io_flash_address = 0;
+        dut->io_flash_value   = 0;
+        dut->clock = 0; dut->eval();
+        dut->clock = 1; dut->eval();
 
-        address++;
+        index++;
     }
 
     dut->io_flash = 0;
     dut->io_flash_address = 0;
     dut->io_flash_value = 0;
+
+    for (int i = 0; i < 2; i++) {
+        dut->clock = 0; dut->eval();
+        dut->clock = 1; dut->eval();    
+    }
 
     for (int i = 0; i < 4; i++) {
         dut->clock ^= 1;

@@ -20,7 +20,9 @@ class Core() extends Module {
     val dcache_start = Output(Bool())
     val dcache_ready = Input(Bool())
     val dcache_valid = Input(Bool())
-    val dcache_data = Input(UInt(32.W))    
+    val dcache_data = Input(UInt(32.W))
+    val handshake_bypass = Input(Bool()) 
+
 
     
     })
@@ -104,6 +106,7 @@ val fetch_op = Mux(jump_flush, FetchOp.RD,
     execute.io.dcache_ready := io.dcache_ready
     execute.io.dcache_valid := io.dcache_valid
     execute.io.dcache_data := io.dcache_data
+    execute.io.handshake_bypass := io.handshake_bypass
 
 
 
@@ -122,83 +125,84 @@ val fetch_op = Mux(jump_flush, FetchOp.RD,
 
 	
 when(io.execute) {
-printf("\n\n\n=== Fetch ===\n")
-printf("fetch op %d\n",fetch_op.asUInt)
-printf("f2d valid: %b\n",  fetch.io.f2d.valid)
+// printf("\n\n\n=== Fetch ===\n")
+// printf("fetch op %d\n",fetch_op.asUInt)
+// printf("f2d valid: %b\n",  fetch.io.f2d.valid)
 printf("f2d pc: %d\n",  fetch.io.f2d.bits.pc)
-printf("f2d inst: %b\n",  fetch.io.f2d.bits.inst)
-printf("icache valid: %b\n",   fetch.io.icache_valid)
-printf("jump_flush=%b fetch_op=%d redirect=%x\n", jump_flush, fetch_op.asUInt, execute.io.pc_redirect.bits)
-// printf("decode consumed: %b\n",   decode_consumed)
+// printf("f2d inst: %b\n",  fetch.io.f2d.bits.inst)
+// printf("icache valid: %b\n",   fetch.io.icache_valid)
+// printf("jump_flush=%b fetch_op=%d redirect=%x\n", jump_flush, fetch_op.asUInt, execute.io.pc_redirect.bits)
+// // printf("decode consumed: %b\n",   decode_consumed)
 
-printf("=== Decode ===\n")
-printf("valid: %b\n",  decode.io.decoded.valid)
-printf("pc: %d\n",  decode.io.decoded.bits.pc)
-printf("opcode: %b\n",  decode.io.decoded.bits.opcode)
-printf("func3:%b\n", decode.io.decoded.bits.func3)
-printf("func7:%b\n", decode.io.decoded.bits.func7)
-printf("rd:   %d\n", decode.io.decoded.bits.rd)
-printf("rs1:  %d\n", decode.io.decoded.bits.rs1)
-printf("rs2:  %d\n", decode.io.decoded.bits.rs2)
-printf("imm:  %d\n", decode.io.decoded.bits.immediate)
-printf("rd_wen:%b\n", decode.io.decoded.bits.rd_wen)
+// printf("=== Decode ===\n")
+// printf("valid: %b\n",  decode.io.decoded.valid)
+// printf("pc: %d\n",  decode.io.decoded.bits.pc)
+// printf("opcode: %b\n",  decode.io.decoded.bits.opcode)
+// printf("func3:%b\n", decode.io.decoded.bits.func3)
+// printf("func7:%b\n", decode.io.decoded.bits.func7)
+// printf("rd:   %d\n", decode.io.decoded.bits.rd)
+// printf("rs1:  %d\n", decode.io.decoded.bits.rs1)
+// printf("rs2:  %d\n", decode.io.decoded.bits.rs2)
+// printf("imm:  %d\n", decode.io.decoded.bits.immediate)
+// printf("rd_wen:%b\n", decode.io.decoded.bits.rd_wen)
 
-printf("=== Read ===\n")
-printf("valid:%b\n", read.io.next_instruction.valid)
-printf("pc:   %d\n", read.io.next_instruction.bits.pc)
-printf("opcode:%b\n", read.io.next_instruction.bits.opcode)
-printf("func3:%b\n", read.io.next_instruction.bits.func3)
-printf("func7:%b\n", read.io.next_instruction.bits.func7)
-printf("rd:   %d\n", read.io.next_instruction.bits.rd)
-printf("rd_wen:%b\n", read.io.next_instruction.bits.rd_wen)
-printf("rs1:  %d\n", read.io.next_instruction.bits.rs1)
-printf("rs1_val:   %x\n", read.io.next_instruction.bits.rs1_val)
-printf("rs2:  %d\n", read.io.next_instruction.bits.rs2)
-printf("rs2_val:   %x\n", read.io.next_instruction.bits.rs2_val)
-printf("imm:  %d\n", read.io.next_instruction.bits.immediate)
-printf("raw_stall: %b\n", read.io.raw_hazard_stall)
-printf("rum:  %b\n", rum)
+// printf("=== Read ===\n")
+// printf("valid:%b\n", read.io.next_instruction.valid)
+// printf("pc:   %d\n", read.io.next_instruction.bits.pc)
+// printf("opcode:%b\n", read.io.next_instruction.bits.opcode)
+// printf("func3:%b\n", read.io.next_instruction.bits.func3)
+// printf("func7:%b\n", read.io.next_instruction.bits.func7)
+// printf("rd:   %d\n", read.io.next_instruction.bits.rd)
+// printf("rd_wen:%b\n", read.io.next_instruction.bits.rd_wen)
+// printf("rs1:  %d\n", read.io.next_instruction.bits.rs1)
+// printf("rs1_val:   %x\n", read.io.next_instruction.bits.rs1_val)
+// printf("rs2:  %d\n", read.io.next_instruction.bits.rs2)
+// printf("rs2_val:   %x\n", read.io.next_instruction.bits.rs2_val)
+// printf("imm:  %d\n", read.io.next_instruction.bits.immediate)
+// printf("raw_stall: %b\n", read.io.raw_hazard_stall)
+// printf("rum:  %b\n", rum)
 
-printf("=== Execute ===\n")
-printf("valid:%b\n", execute.io.next_instruction.valid)
-printf("pc:   %d\n", execute.io.next_instruction.bits.pc)
-printf("opcode:%b\n", execute.io.next_instruction.bits.opcode)
-printf("func3:%b\n", execute.io.next_instruction.bits.func3)
-printf("func7:%b\n", execute.io.next_instruction.bits.func7)
-printf("rd:   %d\n", execute.io.next_instruction.bits.rd)
-printf("rd_wen:%b\n", execute.io.next_instruction.bits.rd_wen)
-printf("rd_val:%x\n", execute.io.next_instruction.bits.rd_val)
-printf("rs1:  %d\n", execute.io.next_instruction.bits.rs1)
-printf("rs1_val:   %x\n", execute.io.next_instruction.bits.rs1_val)
-printf("rs2:  %d\n", execute.io.next_instruction.bits.rs2)
-printf("rs2_val:   %x\n", execute.io.next_instruction.bits.rs2_val)
-printf("imm:  %d\n", execute.io.next_instruction.bits.immediate)
-printf("pc_redir:  %b -> %d\n", execute.io.pc_redirect.valid, execute.io.pc_redirect.bits)
-printf("jmp_flush: %b\n", execute.io.jump_flush)
-printf("mem_stall: %b\n", execute.io.memory_stall)
+// printf("=== Execute ===\n")
+// printf("valid:%b\n", execute.io.next_instruction.valid)
+// printf("pc:   %d\n", execute.io.next_instruction.bits.pc)
+// printf("opcode:%b\n", execute.io.next_instruction.bits.opcode)
+// printf("func3:%b\n", execute.io.next_instruction.bits.func3)
+// printf("func7:%b\n", execute.io.next_instruction.bits.func7)
+// printf("rd:   %d\n", execute.io.next_instruction.bits.rd)
+// printf("rd_wen:%b\n", execute.io.next_instruction.bits.rd_wen)
+// printf("rd_val:%x\n", execute.io.next_instruction.bits.rd_val)
+// printf("rs1:  %d\n", execute.io.next_instruction.bits.rs1)
+// printf("rs1_val:   %x\n", execute.io.next_instruction.bits.rs1_val)
+// printf("rs2:  %d\n", execute.io.next_instruction.bits.rs2)
+// printf("rs2_val:   %x\n", execute.io.next_instruction.bits.rs2_val)
+// printf("imm:  %d\n", execute.io.next_instruction.bits.immediate)
+// printf("pc_redir:  %b -> %d\n", execute.io.pc_redirect.valid, execute.io.pc_redirect.bits)
+// printf("jmp_flush: %b\n", execute.io.jump_flush)
+// printf("mem_stall: %b\n", execute.io.memory_stall)
+// printf("handshake_bypass: %b\n", execute.io.handshake_bypass)
 
-printf("=== Writeback ===\n")
-printf("valid:%b\n", writeback.io.instruction.valid)
-printf("pc:   %d\n", writeback.io.instruction.bits.pc)
-printf("opcode:%b\n", writeback.io.instruction.bits.opcode)
-printf("rd:   %d\n", writeback.io.instruction.bits.rd)
-printf("rd_wen:%b\n", writeback.io.instruction.bits.rd_wen)
-printf("rd_val:%x\n", writeback.io.instruction.bits.rd_val)
-printf("write_en:  %b\n", writeback.io.write_enable)
-printf("write_addr:%d\n", writeback.io.write_address)
-printf("write_val: %x\n", writeback.io.write_val)
+// printf("=== Writeback ===\n")
+// printf("valid:%b\n", writeback.io.instruction.valid)
+// printf("pc:   %d\n", writeback.io.instruction.bits.pc)
+// printf("opcode:%b\n", writeback.io.instruction.bits.opcode)
+// printf("rd:   %d\n", writeback.io.instruction.bits.rd)
+// printf("rd_wen:%b\n", writeback.io.instruction.bits.rd_wen)
+// printf("rd_val:%x\n", writeback.io.instruction.bits.rd_val)
+// printf("write_en:  %b\n", writeback.io.write_enable)
+// printf("write_addr:%d\n", writeback.io.write_address)
+// printf("write_val: %x\n", writeback.io.write_val)
 	
-		printf("=== Dump ===\n");
-		printf("01: %b\n", registers.io.debug_1);
-		printf("02: %b\n", registers.io.debug_2);
-		printf("03: %b\n", registers.io.debug_3);
-		printf("04: %b\n", registers.io.debug_4);
-		printf("05: %b\n", registers.io.debug_5);
-		printf("06: %b\n", registers.io.debug_6);
-		printf("07: %b\n", registers.io.debug_7);
-		printf("08: %b\n", registers.io.debug_8);
-		printf("09: %b\n", registers.io.debug_9);
-		printf("10: %b\n", registers.io.debug_10);		
+// 		printf("=== Dump ===\n");
+// 		printf("01: %b\n", registers.io.debug_1);
+// 		printf("02: %b\n", registers.io.debug_2);
+// 		printf("03: %b\n", registers.io.debug_3);
+// 		printf("04: %b\n", registers.io.debug_4);
+// 		printf("05: %b\n", registers.io.debug_5);
+// 		printf("06: %b\n", registers.io.debug_6);
+// 		printf("07: %b\n", registers.io.debug_7);
+// 		printf("08: %b\n", registers.io.debug_8);
+// 		printf("09: %b\n", registers.io.debug_9);
+// 		printf("10: %b\n", registers.io.debug_10);		
 	}
 }
 

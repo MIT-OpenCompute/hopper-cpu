@@ -15,9 +15,16 @@ class Main() extends Module {
     val debug_ready = Output(Bool())
 
 
+    val vga_clk = Input(Clock());
+    val hsync = Output(Bool())
+    val vsync = Output(Bool())
+    val rgb = Output(UInt(12.W))
+    val blanking = Output(Bool())
+
+
     })
 
-    val memory = Module(new MemoryInterface())
+    val memory = Module(new MemoryWrapper())
     val core = Module(new Core())
     io.debug_ready := memory.io.debug_ready
     memory.io.icache_req := core.io.icache_req
@@ -31,6 +38,7 @@ class Main() extends Module {
     core.io.dcache_ready := memory.io.dcache_ready
     core.io.dcache_valid := memory.io.dcache_valid
     core.io.dcache_data := memory.io.dcache_data
+    core.io.handshake_bypass := memory.io.handshake_bypass
 
     core.io.execute := io.execute
     memory.io.debug_req.address    := io.flash_address
@@ -39,6 +47,18 @@ class Main() extends Module {
     memory.io.debug_req.read      := false.B
     memory.io.debug_req.write     := true.B
     memory.io.debug_start         := io.flash && !io.execute
+
+    val vga_controller = Module(new VGAController())
+    vga_controller.io.address := memory.io.address_vga
+    vga_controller.io.write := memory.io.write_vga
+    vga_controller.io.write_value := memory.io.write_value_vga
+    vga_controller.io.read_clk := io.vga_clk
+    io.hsync := vga_controller.io.hsync
+    io.vsync := vga_controller.io.vsync
+    io.rgb := vga_controller.io.rgb
+    io.blanking := vga_controller.io.blanking
+
+
 
     
 

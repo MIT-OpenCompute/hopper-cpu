@@ -59,7 +59,7 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
 			dut.clock.step(2)
 			dut.io.execute.poke(true.B)
-			dut.clock.step(300)  
+			dut.clock.step(50)  
 		}
 	}
 }
