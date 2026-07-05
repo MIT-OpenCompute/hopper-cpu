@@ -6,19 +6,14 @@ import scala.math._
 
 class Core() extends Module {
     val io = IO(new Bundle {
-		val execute = Input(Bool())
+        val execute = Input(Bool())
 
         val program_memory_adress = Output(UInt(32.W))
         val program_memory_value = Input(UInt(32.W))
-
-        val memory_address = Output(UInt(32.W))
-        val memory_read = Output(Bool())
-        val memory_read_value = Input(UInt(32.W))
-        val memory_write = Output(Bool())
-        val memory_write_value = Output(UInt(32.W))
     })
 
-	val program_pointer = RegInit(0.U(32.W))
+    val program_pointer = RegInit(0.U(32.W))
+    io.program_memory_adress := program_pointer
 
     val registers = Module(new Registers())
     registers.io.write_enable := false.B
@@ -27,166 +22,55 @@ class Core() extends Module {
     registers.io.read_address_a := 0.U(5.W)
     registers.io.read_address_b := 0.U(5.W)
 
-	// ==== FETCH ====
+    val fetch_stage = Module(new FetchStage())
+    fetch_stage.io.execute := io.execute
+    fetch_stage.io.program_pointer := program_pointer
+    fetch_stage.io.memory_read_value := io.program_memory_value
 
-	val fetch_stage = Module(new FetchStage())
-	fetch_stage.io.execute := io.execute
-	fetch_stage.io.program_pointer := program_pointer
-	fetch_stage.io.memory_read_value := io.program_memory_value
+    val decode_stage = Module(new DecodeStage())
+    decode_stage.io.instruction := fetch_stage.io.instruction
+    decode_stage.io.instruction_pointer := fetch_stage.io.next_instruction_pointer
+    decode_stage.io.valid := fetch_stage.io.next_valid
 
-	io.program_memory_adress := fetch_stage.io.memory_read_address
+    val register_scoreboard = Module(new RegisterScoreboard())
+    register_scoreboard.io.instruction := decode_stage.io.decoded
+    register_scoreboard.io.valid := decode_stage.io.next_valid
+    register_scoreboard.io.broadcast_free_value := 0.U
+    register_scoreboard.io.broadcast_free_valid := false.B
+    register_scoreboard.io.broadcast_free_register := 0.U
 
-	// ==== DECODE ====
-	
-	val decode_stage = Module(new DecodeStage())
-	decode_stage.io.instruction := fetch_stage.io.instruction
-	decode_stage.io.instruction_pointer := fetch_stage.io.next_instruction_pointer
-	decode_stage.io.valid := fetch_stage.io.next_valid
+    register_scoreboard.io.read_result_1 := registers.io.out_a
+    register_scoreboard.io.read_result_2 := registers.io.out_b
+    registers.io.read_address_a := register_scoreboard.io.read_register_1
+    registers.io.read_address_b := register_scoreboard.io.read_register_2
 
-	// ==== READ ====
+    val instruction_dispatch_queue = Module(new InstructionDispatchQueue())
+    instruction_dispatch_queue.io.instruction := register_scoreboard.io.next_instruction
+    instruction_dispatch_queue.io.valid := register_scoreboard.io.next_valid
+    instruction_dispatch_queue.io.broadcast_free_valid := false.B
+    instruction_dispatch_queue.io.broadcast_free_register := 0.U
+    instruction_dispatch_queue.io.broadcast_free_value := 0.U
 
-	val read_stage = Module(new ReadStage())
-	read_stage.io.instruction := decode_stage.io.decoded
-	read_stage.io.register_value_a := registers.io.out_a
-	read_stage.io.register_value_b := registers.io.out_b
-	read_stage.io.instruction_pointer := decode_stage.io.next_instruction_pointer
-	read_stage.io.valid := decode_stage.io.next_valid
+    register_scoreboard.io.idq_ready := instruction_dispatch_queue.io.ready
+    register_scoreboard.io.broadcast_mark_valid := instruction_dispatch_queue.io.broadcast_mark_valid
+    register_scoreboard.io.broadcast_mark_register := instruction_dispatch_queue.io.broadcast_mark_register
 
-	registers.io.read_address_a := read_stage.io.register_read_a
-    registers.io.read_address_b := read_stage.io.register_read_b
+    val alu_pe = Module(new Alu)
+    alu_pe.io.instruction := instruction_dispatch_queue.io.alu_out
+    alu_pe.io.valid := instruction_dispatch_queue.io.alu_out_valid
 
-	// ==== EXECUTE 1 ====
+    instruction_dispatch_queue.io.alu_ready := alu_pe.io.ready
 
-	val execute_stage_1 = Module(new ExecuteStage1())
-	execute_stage_1.io.instruction := read_stage.io.next_instruction
-	execute_stage_1.io.rs1 := read_stage.io.out_a
-	execute_stage_1.io.rs2 := read_stage.io.out_b
-	execute_stage_1.io.instruction_pointer := read_stage.io.next_instruction_pointer
-	execute_stage_1.io.valid := read_stage.io.next_valid
+    val reorder_buffer = Module(new ReorderBuffer())
+    reorder_buffer.io.buffer_entry.value := decode_stage.io.decoded.rd_value
+    reorder_buffer.io.buffer_entry.rd := decode_stage.io.decoded.rd
+    reorder_buffer.io.buffer_entry.program_pointer := decode_stage.io.decoded.instruction_pointer
+    reorder_buffer.io.buffer_entry.mode := decode_stage.io.decoded.write_mode
+    reorder_buffer.io.buffer_entry.complete := false.B
+    reorder_buffer.io.valid := decode_stage.io.next_valid
 
-	fetch_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
-	decode_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
-	read_stage.io.flush := execute_stage_1.io.program_pointer_jump_flush || read_stage.io.raw_hazard_flush || execute_stage_1.io.memory_use_flush
-	execute_stage_1.io.flush := execute_stage_1.io.memory_use_flush
-
-	when(io.execute) {
-		when(execute_stage_1.io.program_pointer_jump_flush || execute_stage_1.io.memory_use_flush) {
-			program_pointer := execute_stage_1.io.program_pointer_target
-		}.otherwise {
-			when(read_stage.io.raw_hazard_flush) {
-				program_pointer := read_stage.io.program_pointer_target
-			}.otherwise {
-				program_pointer := program_pointer + 4.U
-			}
-		}
-	}
-
-	// ==== EXECUTE 2 ====
-
-	val execute_stage_2 = Module(new ExecuteStage2())
-	execute_stage_2.io.instruction := execute_stage_1.io.next_instruction
-	execute_stage_2.io.rs1 := execute_stage_1.io.next_rs1
-	execute_stage_2.io.rs2 := execute_stage_1.io.next_rs2
-	execute_stage_2.io.instruction_pointer := execute_stage_1.io.next_instruction_pointer
-	execute_stage_2.io.valid := execute_stage_1.io.next_valid
-	execute_stage_2.io.previous_out := execute_stage_1.io.out
-
-	execute_stage_2.io.memory_read_value := io.memory_read_value
-
-	when(execute_stage_2.io.memory_write) {
-		io.memory_read := false.B
-		io.memory_write := true.B
-		io.memory_address := execute_stage_2.io.memory_write_address
-		io.memory_write_value := execute_stage_2.io.memory_write_value
-	}.otherwise {
-		when(execute_stage_1.io.memory_read) {
-			io.memory_read := true.B
-			io.memory_write := false.B
-			io.memory_address := execute_stage_1.io.memory_read_address
-			io.memory_write_value := 0.U
-		}.otherwise {
-			io.memory_read := false.B
-			io.memory_write := false.B
-			io.memory_address := 0.U
-			io.memory_write_value := 0.U
-		}
-	}
-
-	// ==== WRITE ====
-
-	val write_stage = Module(new WriteStage())
-	write_stage.io.instruction := execute_stage_2.io.next_instruction
-	write_stage.io.value := execute_stage_2.io.out
-	write_stage.io.valid := execute_stage_2.io.next_valid
-
-	registers.io.write_enable := write_stage.io.register_write
-	registers.io.write_address := write_stage.io.register_address
-	registers.io.in := write_stage.io.register_value
-
-	when(io.execute) {
-		printf("Program Pointer: %d\n", program_pointer);
-
-		// printf("\n\n\n=== Fetch ===\n");
-		// printf("Program Pointer: %d\n", program_pointer);
-		// printf("Data: %b\n", fetch_stage.io.instruction);
-		// printf("Valid: %b\n", fetch_stage.io.next_valid);
-
-		// printf("=== Decode ===\n");
-		// printf("Opcode: %b\n", decode_stage.io.decoded.opcode);
-		// printf("Immediate: %b\n", decode_stage.io.decoded.immediate);
-		// printf("Rd: %d\n", decode_stage.io.decoded.rd);
-		// printf("Rs1: %d\n", decode_stage.io.decoded.rs1);
-		// printf("Rs2: %d\n", decode_stage.io.decoded.rs2);
-		// printf("Valid: %b\n", decode_stage.io.next_valid);
-
-		// printf("=== Read ===\n");
-		// printf("Opcode: %b\n", read_stage.io.instruction.opcode);
-		// printf("A: %b\n", read_stage.io.out_a);
-		// printf("B: %b\n", read_stage.io.out_b);
-		// printf("Valid: %b\n", read_stage.io.next_valid);
-		// printf("RAW Flush Requested: %b\n", read_stage.io.raw_hazard_flush);
-		// printf("Jump Target: %d\n", read_stage.io.program_pointer_target);
-
-		// printf("=== Execute 1 ===\n");
-		// printf("Opcode: %b\n", execute_stage_1.io.instruction.opcode);
-		// printf("Func3: %b\n", execute_stage_1.io.instruction.func3);
-		// printf("Out: %b\n", execute_stage_1.io.out);
-		// printf("Valid: %b\n", execute_stage_1.io.next_valid);
-		// printf("Read: %b\n", execute_stage_1.io.memory_read);
-		// printf("Read Adress: %b\n", execute_stage_1.io.memory_read_address);
-		// printf("Jump Flush Requested: %b\n", execute_stage_1.io.program_pointer_jump_flush);
-		// printf("Memory Flush Requested: %b\n", execute_stage_1.io.memory_use_flush);
-		// printf("Jump Target: %d\n", execute_stage_1.io.program_pointer_target);
-
-		// printf("=== Execute 2 ===\n");
-		// printf("Opcode: %b\n", execute_stage_2.io.instruction.opcode);
-		// printf("Func3: %b\n", execute_stage_2.io.instruction.func3);
-		// printf("Read Value: %b\n", execute_stage_2.io.memory_read_value);
-		// printf("Write: %b\n", execute_stage_2.io.memory_write);
-		// printf("Write Adress: %b\n", execute_stage_2.io.memory_write_address);
-		// printf("Write Value: %b\n", execute_stage_2.io.memory_write_value);
-		// printf("Out: %b\n", execute_stage_2.io.out);
-		// printf("Valid: %b\n", execute_stage_2.io.next_valid);
-
-		// printf("=== Write ===\n");
-		// printf("Opcode: %b\n", write_stage.io.instruction.opcode);
-		// printf("Write: %b\n", write_stage.io.register_write);
-		// printf("Address: %b\n", write_stage.io.register_address);
-		// printf("Value: %b\n", write_stage.io.register_value);
-		// printf("Valid: %b\n", write_stage.io.next_valid);
-
-		// printf("=== Dump ===\n");
-		// printf("01: %b\n", registers.io.debug_1);
-		// printf("02: %b\n", registers.io.debug_2);
-		// printf("03: %b\n", registers.io.debug_3);
-		// printf("04: %b\n", registers.io.debug_4);
-		// printf("05: %b\n", registers.io.debug_5);
-		// printf("06: %b\n", registers.io.debug_6);
-		// printf("07: %b\n", registers.io.debug_7);
-		// printf("08: %b\n", registers.io.debug_8);
-		// printf("09: %b\n", registers.io.debug_9);
-		// printf("10: %b\n", registers.io.debug_10);		
-	}
+    reorder_buffer.io.complete_pointer := alu_pe.io.out.reorder_pointer
+    reorder_buffer.io.complete_valid := alu_pe.io.out_valid
 }
 
 object Core extends App {

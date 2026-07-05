@@ -33,7 +33,6 @@ class DecodeStage() extends Module {
         val valid = Input(Bool())
 
         val decoded = Output(new InstructionBundle())
-        val next_instruction_pointer = Output(UInt(32.W))
         val next_valid = Output(Bool())
 
         val flush = Input(Bool())
@@ -68,9 +67,7 @@ class DecodeStage() extends Module {
     io.decoded.func3 := func3
     io.decoded.func7 := func7
 
-    val next_instruction_pointer = RegInit(0.U(32.W))
-    next_instruction_pointer := io.instruction_pointer
-    io.next_instruction_pointer := next_instruction_pointer
+    io.decoded.instruction_pointer := io.instruction_pointer
 
     val valid = RegInit(false.B)
     valid := io.valid && !io.flush
