@@ -38,7 +38,7 @@ class ReorderBuffer() extends Module {
         val write_complete = Input(Bool())
     })
 
-    val buffer = RegInit(VecInit(Seq.fill(256)(0.U.asTypeOf(new BufferEntry))))
+    val buffer = RegInit(VecInit(Seq.fill(256)(0.U.asTypeOf(new BufferEntry()))))
     val head = RegInit(0.U(8.W))
     val tail = RegInit(0.U(8.W))
 
