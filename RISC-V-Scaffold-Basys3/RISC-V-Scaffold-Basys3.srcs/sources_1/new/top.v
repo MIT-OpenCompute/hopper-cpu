@@ -79,8 +79,8 @@ module Top(
         .io_vsync               (vgaVSync),
         .io_rgb                 (rgb),
         .io_blanking            (blanking),
-        .io_vga_clk             (clk_25),
-        .io_btns                (btns)
+        .io_vga_clk             (clk_25)
+//        .io_btns                (btns)
 //        .io_tx                  (RsTx)
     );
 

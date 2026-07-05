@@ -70,12 +70,12 @@ class ICache() extends Module {
     val data_out = Wire(UInt((32 * LINE_WIDTH_WORDS).W))
     data_out := data_array.read(cache_index, read_enable)  
 
-when(reset.asBool) {
-    for (i <- 0 until CACHE_SETS) {
-        data_array.write(i.U, 0.U)
-        meta_array.write(i.U, 0.U)  // also zeros out valid/dirty bits which is important
-    }
-}
+// when(reset.asBool) {
+//     for (i <- 0 until CACHE_SETS) {
+//         data_array.write(i.U, 0.U)
+//         meta_array.write(i.U, 0.U)  // also zeros out valid/dirty bits which is important
+//     }
+// }
 
     io.done := false.B
     io.miss := false.B

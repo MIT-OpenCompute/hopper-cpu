@@ -70,14 +70,20 @@ class DCache() extends Module {
     line_addr := getLineAddr(lookup_address)
     val read_enable = io.start || state === CacheState.LOOKUP
     val data_out = Wire(UInt((32 * LINE_WIDTH_WORDS).W))
-    data_out := data_array.read(cache_index, read_enable)  
+    data_out := data_array.read(cache_index, read_enable)
 
-when(reset.asBool) {
-    for (i <- 0 until CACHE_SETS) {
-        data_array.write(i.U, 0.U)
-        meta_array.write(i.U, 0.U)  // also zeros out valid/dirty bits which is important
-    }
-}
+    // --- Consolidated single write port for each array ---
+    // Every branch that used to call data_array.write(...)/meta_array.write(...)
+    // directly now just drives these shared wires instead. One .write() call
+    // per array (outside the switch) keeps this inferable as real Block RAM
+    // instead of 3+ physical write ports collapsing into distributed FFs.
+    val data_wr_en   = WireDefault(false.B)
+    val data_wr_data = WireDefault(0.U((32 * LINE_WIDTH_WORDS).W))
+    val meta_wr_en   = WireDefault(false.B)
+    val meta_wr_data = WireDefault(0.U(meta_array.t.getWidth.W))
+    // Both arrays are always written at cache_index in this design (no separate
+    // fill address vs. hit address), so a single shared write address is fine.
+    val write_addr = cache_index
 
     io.done := false.B
     io.miss := false.B
@@ -172,8 +178,10 @@ switch(state) {
                     is(3.U) { updated_line := Cat(updated_word, data_out(95, 0)) }
                 }
 
-                data_array.write(cache_index, updated_line)
-                meta_array.write(cache_index, Cat("b11".U(2.W), cache_tag))
+                data_wr_en   := true.B
+                data_wr_data := updated_line
+                meta_wr_en   := true.B
+                meta_wr_data := Cat("b11".U(2.W), cache_tag)
                 // FIX 4: signal done on write hit
                 io.done := true.B
             }.otherwise {
@@ -304,12 +312,16 @@ switch(state) {
                 }
 
                 // printf("WRITING MISS WRITING MISSS %x index: %d \n",updated_line, cache_index)
-                data_array.write(cache_index, updated_line)
-                meta_array.write(cache_index, Cat("b11".U(2.W), cache_tag)) // dirty
+                data_wr_en   := true.B
+                data_wr_data := updated_line
+                meta_wr_en   := true.B
+                meta_wr_data := Cat("b11".U(2.W), cache_tag) // dirty
                 io.done := true.B
             }.otherwise {
-                data_array.write(cache_index, io.line_result)
-                meta_array.write(cache_index, Cat("b10".U(2.W), cache_tag))//valid not dirty
+                data_wr_en   := true.B
+                data_wr_data := io.line_result
+                meta_wr_en   := true.B
+                meta_wr_data := Cat("b10".U(2.W), cache_tag) //valid not dirty
                 val lwords = VecInit((0 until 4).map(i => io.line_result(32*i + 31, 32*i)))
                 val updated_word = lwords(word_offset)
                 switch(current_mem_req.op){
@@ -358,7 +370,16 @@ switch(state) {
             state := CacheState.IDLE
         }
     }
-}   
+}
+
+    // --- Single physical write port per array ---
+    when(data_wr_en) {
+        data_array.write(write_addr, data_wr_data)
+    }
+    when(meta_wr_en) {
+        meta_array.write(write_addr, meta_wr_data)
+    }
+
   when(false.B) {
     printf("DCACHE cycle: state=%d | req=[addr=%x wdata=%x r=%d w=%d] | idx=%x tag=%x word_off=%x | meta=[status=%b tag=%x] | data_out=%x | done=%d miss=%d wb=%d | line_valid=%d line_result=%x | wb_addr=%x line_addr=%x\n",
         state.asUInt,

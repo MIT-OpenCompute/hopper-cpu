@@ -8,7 +8,7 @@ class Read() extends Module {
   val io = IO(new Bundle {
     val instruction = Input(Valid(new InstructionBundle()))
     val register_read_a = Output(UInt(5.W))
-        val register_read_b = Output(UInt(5.W))
+    val register_read_b = Output(UInt(5.W))
     val register_value_a = Input(UInt(32.W))
     val register_value_b = Input(UInt(32.W))
     val next_instruction = Output(Valid(new InstructionBundle()))
