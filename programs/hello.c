@@ -14,10 +14,12 @@ __attribute__((naked)) void _start(void) {
 
 
 
+
+
 static void draw_image(volatile unsigned int* frame, int ox, int oy) {
     for (int y = 0; y < IMG_H; y++) {
         for (int x = 0; x < IMG_W; x++) {
-            frame[(oy + y) * 320 + (ox + x)] = 122;
+            frame[(oy + y) * 320 + (ox + x)] = (char)132;
         }
     }
 }
@@ -42,12 +44,6 @@ int main() {
         frame[320 * i + 1] = 0xFF;
         frame[320 * i + 319] = 0xFF;
     }
-    // char buffer[10];
-    // buffer[0] = 0xE0;
-    // buffer[1] = 0xFF;
-    // buffer[2] = 0x03;
-    // buffer[4] = 120;
-    // fill_buffer();
 
     while (1) {
         draw_image(frame, 0, 0);
