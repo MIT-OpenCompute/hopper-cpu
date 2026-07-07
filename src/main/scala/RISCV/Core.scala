@@ -197,17 +197,17 @@ printf("f2d pc: %d\n",  fetch.io.f2d.bits.pc)
 // printf("write_addr:%d\n", writeback.io.write_address)
 // printf("write_val: %x\n", writeback.io.write_val)
 	
-		printf("=== Dump ===\n");
-		printf("01: %b\n", registers.io.debug_1);
-		printf("02: %b\n", registers.io.debug_2);
-		printf("03: %b\n", registers.io.debug_3);
-		printf("04: %b\n", registers.io.debug_4);
-		printf("05: %b\n", registers.io.debug_5);
-		printf("06: %b\n", registers.io.debug_6);
-		printf("07: %b\n", registers.io.debug_7);
-		printf("08: %b\n", registers.io.debug_8);
-		printf("09: %b\n", registers.io.debug_9);
-		printf("10: %b\n", registers.io.debug_10);		
+		// printf("=== Dump ===\n");
+		// printf("01: %b\n", registers.io.debug_1);
+		// printf("02: %b\n", registers.io.debug_2);
+		// printf("03: %b\n", registers.io.debug_3);
+		// printf("04: %b\n", registers.io.debug_4);
+		// printf("05: %b\n", registers.io.debug_5);
+		// printf("06: %b\n", registers.io.debug_6);
+		// printf("07: %b\n", registers.io.debug_7);
+		// printf("08: %b\n", registers.io.debug_8);
+		// printf("09: %b\n", registers.io.debug_9);
+		// printf("10: %b\n", registers.io.debug_10);		
 	}
 }
 

@@ -22,7 +22,7 @@ echo "Converting to binary..."
 echo "Converting to hex..."
 python convert.py "$BIN" "$HEX" || exit 1
 echo "Loading program..."
-python load_program.py "$HEX" --port /dev/ttyUSB3
+python load_program.py "$HEX" --port /dev/ttyUSB1
 echo "Cleaning up..."
 rm -f "$OBJ" "$ELF" "$BIN" #"$HEX"
 echo "Done."

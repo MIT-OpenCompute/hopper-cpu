@@ -1,6 +1,6 @@
 __attribute__((naked)) void _start(void) {
     __asm__ volatile(
-        "li sp, 0x4000\n"
+        "li sp, 0x4000000\n"
         "call main\n"
         "loop: j loop\n"
     );
@@ -46,7 +46,7 @@ void draw_mandelbrot(volatile unsigned char* frame, int cx, int cy, int zoom) {
                 color = (unsigned char)(iter * 7);
             }
 
-            frame[0x4000 * (320 * py + px)] = color;
+            frame[0x4000000 * (320 * py + px)] = color;
         }
     }
 }

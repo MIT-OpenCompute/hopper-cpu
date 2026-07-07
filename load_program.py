@@ -21,8 +21,8 @@ import argparse
 parser = argparse.ArgumentParser(description="Load a RISC-V hex program onto FPGA over UART")
 parser.add_argument("hex_file",              help="Path to the .hex program file")
 parser.add_argument("--port",  default="COM3", help="Serial port (default: COM3)")
-parser.add_argument("--baud",  default=115200, type=int, help="Baud rate (default: 115200)")
-parser.add_argument("--delay", default=0.01,  type=float, help="Delay between words in seconds (default: 0.01)")
+parser.add_argument("--baud",  default=4000000, type=int, help="Baud rate (default: 115200)")
+parser.add_argument("--delay", default=0.00,  type=float, help="Delay between words in seconds (default: 0.01)")
 args = parser.parse_args()
 
 # -------------------------------------------------------

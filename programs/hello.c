@@ -1,13 +1,32 @@
 __attribute__((naked)) void _start(void) {
     __asm__ volatile(
-        "li sp, 0x4000\n"  // top of 32KB RAM
+        "li sp, 0x4000000\n"  
         "call main\n"
         "loop: j loop\n"
     );
 }
 
+
+#define IMG_W 320
+#define IMG_H 240
+
+
+
+
+
+static void draw_image(volatile unsigned int* frame, int ox, int oy) {
+    for (int y = 0; y < IMG_H; y++) {
+        for (int x = 0; x < IMG_W; x++) {
+            frame[(oy + y) * 320 + (ox + x)] = 122;
+        }
+    }
+}
+
+
+
+
 int main() {
-    volatile unsigned int* frame = (volatile unsigned int*)0x4000;
+    volatile unsigned int* frame = (volatile unsigned int*)0x4000000;
 
     int paddY1 = 120;
     int paddY2 = 120;
@@ -23,8 +42,15 @@ int main() {
         frame[320 * i + 1] = 0xFF;
         frame[320 * i + 319] = 0xFF;
     }
+    // char buffer[10];
+    // buffer[0] = 0xE0;
+    // buffer[1] = 0xFF;
+    // buffer[2] = 0x03;
+    // buffer[4] = 120;
+    // fill_buffer();
 
     while (1) {
+        draw_image(frame, 0, 0);
         for (int x = -2; x <= 2; x++) {
             for (int y = -2; y <= 2; y++) {
                 frame[320 * (ballY + y) + ballX + x] = 0x00;
