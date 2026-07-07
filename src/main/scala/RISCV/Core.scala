@@ -24,6 +24,8 @@ class Core() extends Module {
     val handshake_bypass = Input(Bool()) 
 
     val debug_reg = Output(UInt(32.W))
+    val debug_pc = Output(UInt(32.W))
+
 
     
     })
@@ -34,6 +36,8 @@ class Core() extends Module {
     registers.io.read_address_b := 0.U(5.W)
     io.debug_reg := registers.io.debug_1
     val fetch = Module(new Fetch())
+        io.debug_pc := fetch.io.f2d.bits.pc
+
     val decode = Module(new Decode())
     val read = Module(new Read())
     val execute = Module(new Execute())
@@ -193,17 +197,17 @@ printf("f2d pc: %d\n",  fetch.io.f2d.bits.pc)
 // printf("write_addr:%d\n", writeback.io.write_address)
 // printf("write_val: %x\n", writeback.io.write_val)
 	
-// 		printf("=== Dump ===\n");
-// 		printf("01: %b\n", registers.io.debug_1);
-// 		printf("02: %b\n", registers.io.debug_2);
-// 		printf("03: %b\n", registers.io.debug_3);
-// 		printf("04: %b\n", registers.io.debug_4);
-// 		printf("05: %b\n", registers.io.debug_5);
-// 		printf("06: %b\n", registers.io.debug_6);
-// 		printf("07: %b\n", registers.io.debug_7);
-// 		printf("08: %b\n", registers.io.debug_8);
-// 		printf("09: %b\n", registers.io.debug_9);
-// 		printf("10: %b\n", registers.io.debug_10);		
+		printf("=== Dump ===\n");
+		printf("01: %b\n", registers.io.debug_1);
+		printf("02: %b\n", registers.io.debug_2);
+		printf("03: %b\n", registers.io.debug_3);
+		printf("04: %b\n", registers.io.debug_4);
+		printf("05: %b\n", registers.io.debug_5);
+		printf("06: %b\n", registers.io.debug_6);
+		printf("07: %b\n", registers.io.debug_7);
+		printf("08: %b\n", registers.io.debug_8);
+		printf("09: %b\n", registers.io.debug_9);
+		printf("10: %b\n", registers.io.debug_10);		
 	}
 }
 

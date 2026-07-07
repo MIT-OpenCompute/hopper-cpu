@@ -27,6 +27,8 @@ class Main() extends Module {
     val mem_valid = Input(Bool()) 
 
     val debug_reg = Output(UInt(32.W))
+    val debug_pc = Output(UInt(32.W))
+
 
     })
 
@@ -34,6 +36,7 @@ class Main() extends Module {
     val core = Module(new Core())
     io.debug_reg := core.io.debug_reg
     io.debug_ready := memory.io.debug_ready
+    io.debug_pc := core.io.debug_pc
     memory.io.icache_req := core.io.icache_req
     memory.io.icache_start := core.io.icache_start
     core.io.icache_ready := memory.io.icache_ready
