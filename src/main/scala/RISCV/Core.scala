@@ -23,6 +23,7 @@ class Core() extends Module {
     val dcache_data = Input(UInt(32.W))
     val handshake_bypass = Input(Bool()) 
 
+    val debug_reg = Output(UInt(32.W))
 
     
     })
@@ -31,7 +32,7 @@ class Core() extends Module {
     val registers = Module(new Registers())
     registers.io.read_address_a := 0.U(5.W)
     registers.io.read_address_b := 0.U(5.W)
-
+    io.debug_reg := registers.io.debug_1
     val fetch = Module(new Fetch())
     val decode = Module(new Decode())
     val read = Module(new Read())

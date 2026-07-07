@@ -26,6 +26,10 @@ class MemoryWrapper() extends Module {
     val debug_valid  = Output(Bool())
     val debug_data   = Output(UInt(32.W))
 
+    val mem_req   = Decoupled(new MemLineReq)   
+    val mem_resp  = Input(UInt(128.W))
+    val mem_valid = Input(Bool()) 
+
     val address_vga = Output(UInt(32.W))
     val write_vga = Output(Bool())
     val write_value_vga = Output(UInt(32.W))
@@ -61,6 +65,9 @@ class MemoryWrapper() extends Module {
   io.debug_valid := mem.io.debug_valid
   io.debug_data := mem.io.debug_data
 
+  io.mem_req       <> mem.io.mem_req
+  mem.io.mem_resp := io.mem_resp
+  mem.io.mem_valid := io.mem_valid
 
 
    //i needs a handshake bypass

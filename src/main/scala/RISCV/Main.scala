@@ -3,6 +3,8 @@ package RISCV
 import chisel3._
 import _root_.circt.stage.ChiselStage
 import scala.math._
+import chisel3.util._
+
 
 class Main() extends Module {
     val io = IO(new Bundle {
@@ -11,7 +13,6 @@ class Main() extends Module {
     val flash = Input(Bool())
 		val flash_address = Input(UInt(32.W))
 		val flash_value = Input(UInt(32.W))
-
     val debug_ready = Output(Bool())
 
 
@@ -21,11 +22,17 @@ class Main() extends Module {
     val rgb = Output(UInt(12.W))
     val blanking = Output(Bool())
 
+    val mem_req   = Decoupled(new MemLineReq)   
+    val mem_resp  = Input(UInt(128.W))
+    val mem_valid = Input(Bool()) 
+
+    val debug_reg = Output(UInt(32.W))
 
     })
 
     val memory = Module(new MemoryWrapper())
     val core = Module(new Core())
+    io.debug_reg := core.io.debug_reg
     io.debug_ready := memory.io.debug_ready
     memory.io.icache_req := core.io.icache_req
     memory.io.icache_start := core.io.icache_start
@@ -47,6 +54,10 @@ class Main() extends Module {
     memory.io.debug_req.read      := false.B
     memory.io.debug_req.write     := true.B
     memory.io.debug_start         := io.flash && !io.execute
+
+    io.mem_req       <> memory.io.mem_req
+    memory.io.mem_resp := io.mem_resp
+    memory.io.mem_valid := io.mem_valid
 
     val vga_controller = Module(new VGAController())
     vga_controller.io.address := memory.io.address_vga

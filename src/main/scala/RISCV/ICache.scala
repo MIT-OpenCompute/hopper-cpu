@@ -70,12 +70,7 @@ class ICache() extends Module {
     val data_out = Wire(UInt((32 * LINE_WIDTH_WORDS).W))
     data_out := data_array.read(cache_index, read_enable)  
 
-// when(reset.asBool) {
-//     for (i <- 0 until CACHE_SETS) {
-//         data_array.write(i.U, 0.U)
-//         meta_array.write(i.U, 0.U)  // also zeros out valid/dirty bits which is important
-//     }
-// }
+
 
     io.done := false.B
     io.miss := false.B
@@ -88,9 +83,8 @@ class ICache() extends Module {
     io.ready:= state === CacheState.IDLE // or hit
     io.wb := false.B
     io.wb_data := data_out
-    // FIX 3: wb_addr was missing the lower bits
     io.wb_addr := Cat(tag, cache_index, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
-    io.line_addr:= line_addr
+    io.line_addr := Cat(line_addr, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
 
     val words = VecInit(
     (0 until 4).map(i => data_out(32*i + 31, 32*i))

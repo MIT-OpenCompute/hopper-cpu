@@ -2,12 +2,10 @@ package RISCV
 import chisel3._
 import chisel3.util._
 import _root_.circt.stage.ChiselStage
-import chisel3.util.experimental.loadMemoryFromFileInline
 
 object MemOp extends ChiselEnum {
   val LW,LH,LB,LBU,LHU,SW,SH,SB = Value
 }
-
 class MemReq extends Bundle {
   val address    = UInt(32.W)
   val write_data = UInt(32.W)
@@ -23,49 +21,84 @@ class MemoryInterface() extends Module {
     val icache_ready = Output(Bool())
     val icache_valid = Output(Bool())
     val icache_data  = Output(UInt(32.W))
-
     val dcache_req   = Input(new MemReq)
     val dcache_start = Input(Bool())
     val dcache_ready = Output(Bool())
     val dcache_valid = Output(Bool())
     val dcache_data  = Output(UInt(32.W))
-
     val debug_req    = Input(new MemReq)
     val debug_start  = Input(Bool())
     val debug_ready  = Output(Bool())
     val debug_valid  = Output(Bool())
     val debug_data   = Output(UInt(32.W))
-  })
 
+    val mem_req   = Decoupled(new MemLineReq)   
+    val mem_resp  = Input(UInt(128.W))
+    val mem_valid = Input(Bool())      
+
+    
+
+})
   val icache = Module(new ICache())
   val dcache = Module(new DCache())
   val arbiter = Module(new CacheArbiter())
-  val memory  = SyncReadMem(1024, UInt(128.W))
 
-  // debug port state — accumulate 4 words into a line then write directly to memory
-  val debug_buf     = RegInit(VecInit(Seq.fill(4)(0.U(32.W))))
-  val debug_valid_r = RegInit(false.B)
 
-  // word index and line index from byte address
-  val debug_word_off  = io.debug_req.address(3, 2)
-  val debug_line_addr = io.debug_req.address >> 4
 
-  io.debug_ready := true.B   // always ready, direct write
+  val debug_buf = RegInit(VecInit(Seq.fill(4)(0.U(32.W))))
+
+  val debug_word_off       = io.debug_req.address(3, 2)
+  val debug_line_addr      = io.debug_req.address >> 4   
+  val debug_line_byte_addr = Cat(debug_line_addr, 0.U(4.W))  
+
+  object DebugState extends ChiselEnum {
+    val D_IDLE, D_ISSUE, D_WAIT = Value
+  }
+  val debug_state         = RegInit(DebugState.D_IDLE)
+  val debug_pending_addr  = RegInit(0.U(32.W))
+  val debug_pending_wdata = RegInit(0.U(128.W))
+
+  val debug_can_start = arbiter.io.idle && (debug_state === DebugState.D_IDLE)
+  io.debug_ready := debug_can_start
   io.debug_valid := false.B
-  io.debug_data  := 0.U
+  io.debug_data  := 0.U   
 
-  when(io.debug_start && io.debug_req.write) {
-    // patch the word into the buffer
-    debug_buf(debug_word_off) := io.debug_req.write_data
-    // write the full line directly to memory, bypassing arbiter
-    val patched = Wire(Vec(4, UInt(32.W)))
-    for (i <- 0 until 4) { patched(i) := debug_buf(i) }
-    patched(debug_word_off) := io.debug_req.write_data
-    memory.write(debug_line_addr, patched.asUInt)
-    io.debug_valid := true.B
+  val debug_req_valid = WireDefault(false.B)
+  val debug_req_write = WireDefault(true.B)
+  val debug_req_addr  = WireDefault(0.U(32.W))
+  val debug_req_wdata = WireDefault(0.U(128.W))
+
+  switch(debug_state) {
+    is(DebugState.D_IDLE) {
+      when(io.debug_start && io.debug_req.write && debug_can_start) {
+
+        debug_buf(debug_word_off) := io.debug_req.write_data
+        val patched = Wire(Vec(4, UInt(32.W)))
+        for (i <- 0 until 4) { patched(i) := debug_buf(i) }
+        patched(debug_word_off) := io.debug_req.write_data
+
+        debug_pending_addr  := debug_line_byte_addr
+        debug_pending_wdata := patched.asUInt
+        debug_state := DebugState.D_ISSUE
+      }
+    }
+    is(DebugState.D_ISSUE) {
+      debug_req_valid := true.B
+      debug_req_write := true.B
+      debug_req_addr  := debug_pending_addr
+      debug_req_wdata := debug_pending_wdata
+      when(io.mem_req.valid && io.mem_req.ready) {
+        debug_state := DebugState.D_WAIT
+      }
+    }
+    is(DebugState.D_WAIT) {
+      when(io.mem_req.ready) {
+        io.debug_valid := true.B
+        debug_state := DebugState.D_IDLE
+      }
+    }
   }
 
-  // normal cache path — caches blocked during debug
   icache.io.req   := io.icache_req
   icache.io.start := io.icache_start && !io.debug_start
   io.icache_ready := icache.io.ready && !io.debug_start
@@ -88,21 +121,32 @@ class MemoryInterface() extends Module {
   arbiter.io.dcache_req.bits.write := dcache.io.wb
   arbiter.io.dcache_req.bits.wdata := dcache.io.wb_data
 
-  // mux arbiter vs debug for the single memory port
-  // debug uses memory.write (separate port) so readWrite is free for arbiter
-  val mem_out = memory.readWrite(
-    arbiter.io.mem_req.bits.addr,
-    arbiter.io.mem_req.bits.wdata,
-    arbiter.io.mem_req.valid && !io.debug_start,
-    arbiter.io.mem_req.bits.write
-  )
-  arbiter.io.mem_req.ready := !io.debug_start
-  arbiter.io.mem_resp      := mem_out
-  arbiter.io.mem_valid     := RegNext(arbiter.io.mem_req.valid && !arbiter.io.mem_req.bits.write && !io.debug_start, false.B)
 
-  icache.io.line_result := mem_out
+  val debug_owns_port = (debug_state === DebugState.D_ISSUE)
+
+  io.mem_req.valid      := Mux(debug_owns_port, debug_req_valid, arbiter.io.mem_req.valid)
+  io.mem_req.bits.write := Mux(debug_owns_port, debug_req_write, arbiter.io.mem_req.bits.write)
+  io.mem_req.bits.addr  := Mux(debug_owns_port, debug_req_addr,  arbiter.io.mem_req.bits.addr)
+  io.mem_req.bits.wdata := Mux(debug_owns_port, debug_req_wdata, arbiter.io.mem_req.bits.wdata)
+
+  arbiter.io.mem_req.ready := !debug_owns_port && io.mem_req.ready
+  arbiter.io.mem_resp      := io.mem_resp
+  arbiter.io.mem_valid     := io.mem_valid && !debug_owns_port
+
+  icache.io.line_result := io.mem_resp
   icache.io.line_valid  := arbiter.io.resp_to_icache
-  dcache.io.line_result := mem_out
+  dcache.io.line_result := io.mem_resp
   dcache.io.line_valid  := arbiter.io.resp_to_dcache
 }
 
+object MemoryInterface extends App {
+    ChiselStage.emitSystemVerilogFile(
+      new MemoryInterface(),
+      firtoolOpts = Array(
+        "-disable-all-randomization",
+        "-strip-debug-info",
+        "-default-layer-specialization=enable"
+      ),
+      args = Array("--target-dir", "generated")
+    )
+}

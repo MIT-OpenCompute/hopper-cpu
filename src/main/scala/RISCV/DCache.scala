@@ -28,6 +28,8 @@ class DCache() extends Module {
         val line_addr = Output(UInt(32.W))
         val line_valid = Input(Bool())
 
+
+
         
     })
 
@@ -98,7 +100,7 @@ class DCache() extends Module {
     io.wb_data := data_out
     // FIX 3: wb_addr was missing the lower bits
     io.wb_addr := Cat(tag, cache_index, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
-    io.line_addr:= line_addr
+    io.line_addr := Cat(line_addr, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
 
     val words = VecInit(
     (0 until 4).map(i => data_out(32*i + 31, 32*i))
