@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
             dut->clock = 1; 
             dut->io_vga_clk = 1;
 
-\            if (dut->io_mem_req_valid) {
+            if (dut->io_mem_req_valid) {
                 dut->io_mem_req_ready = 1;
                 if (!read_in_progress && !dut->io_mem_req_bits_write) {
                     read_in_progress = true;
