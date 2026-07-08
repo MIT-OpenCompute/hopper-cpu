@@ -20,6 +20,25 @@ static constexpr int V_SYNC    = 2;
 static constexpr int V_BACK    = 33;
 static constexpr int V_TOTAL   = V_VISIBLE + V_FRONT + V_SYNC + V_BACK;
 
+// Commits a write request's 128-bit wdata into the mock DDR3 row at the
+// aligned address. io_mem_req_bits_wdata is a 128-bit signal, so Verilator
+// exposes it the same way io_mem_resp already is: a 4-element uint32 array.
+static void handle_mem_write(std::unique_ptr<VMain>& dut,
+                              std::map<uint32_t, std::vector<uint8_t>>& mock_ddr3) {
+    uint32_t addr = dut->io_mem_req_bits_addr;
+    uint32_t line_base_addr = (addr / 16) * 16;
+
+    if (mock_ddr3.find(line_base_addr) == mock_ddr3.end()) {
+        mock_ddr3[line_base_addr] = std::vector<uint8_t>(16, 0);
+    }
+    auto& data_row = mock_ddr3[line_base_addr];
+
+    *(uint32_t*)&data_row[0]  = dut->io_mem_req_bits_wdata[0];
+    *(uint32_t*)&data_row[4]  = dut->io_mem_req_bits_wdata[1];
+    *(uint32_t*)&data_row[8]  = dut->io_mem_req_bits_wdata[2];
+    *(uint32_t*)&data_row[12] = dut->io_mem_req_bits_wdata[3];
+}
+
 int main(int argc, char** argv) {
     Verilated::commandArgs(argc, argv);
     auto dut = std::make_unique<VMain>();
@@ -92,8 +111,10 @@ int main(int argc, char** argv) {
          
             if (dut->io_mem_req_valid) {
                 dut->io_mem_req_ready = 1; 
-                
-                if (!read_in_progress && !dut->io_mem_req_bits_write) {
+
+                if (dut->io_mem_req_bits_write) {
+                    handle_mem_write(dut, mock_ddr3);
+                } else if (!read_in_progress) {
                     read_in_progress = true;
                     read_latency_counter = 4; 
                     active_read_addr = dut->io_mem_req_bits_addr;
@@ -146,7 +167,10 @@ int main(int argc, char** argv) {
 
             if (dut->io_mem_req_valid) {
                 dut->io_mem_req_ready = 1;
-                if (!read_in_progress && !dut->io_mem_req_bits_write) {
+
+                if (dut->io_mem_req_bits_write) {
+                    handle_mem_write(dut, mock_ddr3);
+                } else if (!read_in_progress) {
                     read_in_progress = true;
                     read_latency_counter = 4;
                     active_read_addr = dut->io_mem_req_bits_addr;

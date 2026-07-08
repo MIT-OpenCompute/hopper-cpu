@@ -33,16 +33,37 @@ class Registers() extends Module {
     val out_a          = Output(UInt(32.W))
     val out_b          = Output(UInt(32.W))
 
-        val debug_1 = Output(UInt(32.W));
-        val debug_2 = Output(UInt(32.W));
-        val debug_3 = Output(UInt(32.W));
-        val debug_4 = Output(UInt(32.W));
-        val debug_5 = Output(UInt(32.W));
-        val debug_6 = Output(UInt(32.W));
-        val debug_7 = Output(UInt(32.W));
-        val debug_8 = Output(UInt(32.W));
-        val debug_9 = Output(UInt(32.W));
-        val debug_10 = Output(UInt(32.W));
+  val debug_1  = Output(UInt(32.W))
+        val debug_2  = Output(UInt(32.W))
+        val debug_3  = Output(UInt(32.W))
+        val debug_4  = Output(UInt(32.W))
+        val debug_5  = Output(UInt(32.W))
+        val debug_6  = Output(UInt(32.W))
+        val debug_7  = Output(UInt(32.W))
+        val debug_8  = Output(UInt(32.W))
+        val debug_9  = Output(UInt(32.W))
+        val debug_10 = Output(UInt(32.W))
+        val debug_11 = Output(UInt(32.W))
+        val debug_12 = Output(UInt(32.W))
+        val debug_13 = Output(UInt(32.W))
+        val debug_14 = Output(UInt(32.W))
+        val debug_15 = Output(UInt(32.W))
+        val debug_16 = Output(UInt(32.W))
+        val debug_17 = Output(UInt(32.W))
+        val debug_18 = Output(UInt(32.W))
+        val debug_19 = Output(UInt(32.W))
+        val debug_20 = Output(UInt(32.W))
+        val debug_21 = Output(UInt(32.W))
+        val debug_22 = Output(UInt(32.W))
+        val debug_23 = Output(UInt(32.W))
+        val debug_24 = Output(UInt(32.W))
+        val debug_25 = Output(UInt(32.W))
+        val debug_26 = Output(UInt(32.W))
+        val debug_27 = Output(UInt(32.W))
+        val debug_28 = Output(UInt(32.W))
+        val debug_29 = Output(UInt(32.W))
+        val debug_30 = Output(UInt(32.W))
+        val debug_31 = Output(UInt(32.W))
   })
 
 
@@ -57,12 +78,33 @@ class Registers() extends Module {
     io.debug_3 := regs(3);
     io.debug_4 := regs(4);
     io.debug_5 := regs(5);
-    io.debug_5 := regs(5);
     io.debug_6 := regs(6);
     io.debug_7 := regs(7);
     io.debug_8 := regs(8);
     io.debug_9 := regs(9);
     io.debug_10 := regs(10);
+    io.debug_11 := regs(11);
+    io.debug_12 := regs(12);
+    io.debug_13 := regs(13);
+    io.debug_14 := regs(14);
+    io.debug_15 := regs(15);
+    io.debug_16 := regs(16);
+    io.debug_17 := regs(17);
+    io.debug_18 := regs(18);
+    io.debug_19 := regs(19);
+    io.debug_20 := regs(20);
+    io.debug_21 := regs(21);
+    io.debug_22 := regs(22);
+    io.debug_23 := regs(23);
+    io.debug_24 := regs(24);
+    io.debug_25 := regs(25);
+    io.debug_26 := regs(26);
+    io.debug_27 := regs(27);
+    io.debug_28 := regs(28);
+    io.debug_29 := regs(29);
+    io.debug_30 := regs(30);
+    io.debug_31 := regs(31);
+
 
     // Uncomment to print the register contents every time they are accessed
     //printf("Regs: [%d]=%d, [%d]=%d, WE=%b, WA=%d, IN=%d\n", io.read_address_a, io.out_a, io.read_address_b, io.out_b, io.write_enable, io.write_address, io.in)

@@ -1,6 +1,6 @@
 __attribute__((naked)) void _start(void) {
     __asm__ volatile(
-        "li sp, 0x4000000\n"  
+        "li sp, 0x40000\n"  
         "call main\n"
         "loop: j loop\n"
     );
@@ -9,8 +9,6 @@ __attribute__((naked)) void _start(void) {
 
 #define IMG_W 320
 #define IMG_H 240
-
-
 
 volatile unsigned char buffer[320];
 
