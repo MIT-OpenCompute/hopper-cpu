@@ -32,6 +32,8 @@ class Core() extends Module {
     decode_stage.io.instruction_pointer := fetch_stage.io.next_instruction_pointer
     decode_stage.io.valid := fetch_stage.io.next_valid
 
+    fetch_stage.io.next_ready := decode_stage.io.ready
+
     val register_scoreboard = Module(new RegisterScoreboard())
     register_scoreboard.io.instruction := decode_stage.io.decoded
     register_scoreboard.io.valid := decode_stage.io.next_valid
@@ -43,6 +45,8 @@ class Core() extends Module {
     register_scoreboard.io.read_result_2 := registers.io.out_b
     registers.io.read_address_a := register_scoreboard.io.read_register_1
     registers.io.read_address_b := register_scoreboard.io.read_register_2
+
+    decode_stage.io.next_ready := register_scoreboard.io.ready
 
     val instruction_dispatch_queue = Module(new InstructionDispatchQueue())
     instruction_dispatch_queue.io.instruction := register_scoreboard.io.next_instruction

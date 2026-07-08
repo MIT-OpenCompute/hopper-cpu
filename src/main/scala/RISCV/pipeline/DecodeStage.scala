@@ -36,25 +36,37 @@ class DecodeStage() extends Module {
         val next_valid = Output(Bool())
 
         val flush = Input(Bool())
+
+        val next_ready = Input(Bool())
+        val ready = Output(Bool())
     })
+
+    io.ready := io.next_ready
 
     val decoder = Module(new Decoder())
     decoder.io.instruction := io.instruction
 
     val rs1 = RegInit(0.U(5.W))
-    rs1 := decoder.io.rs1
     val rs2 = RegInit(0.U(5.W))
-    rs2 := decoder.io.rs2
     val rd = RegInit(0.U(5.W))
-    rd := decoder.io.rd
     val immediate = RegInit(0.U(32.W))
-    immediate := decoder.io.immediate
     val opcode = RegInit(0.U(7.W))
-    opcode := decoder.io.opcode
     val func3 = RegInit(0.U(3.W))
-    func3 := decoder.io.func3
     val func7 = RegInit(0.U(7.W))
-    func7 := decoder.io.func7
+    val instruction_pinter = RegInit(0.U(32.W))
+    val valid = RegInit(false.B)
+
+    when(io.next_ready) {
+        immediate := decoder.io.immediate
+        rs1 := decoder.io.rs1
+        rs2 := decoder.io.rs2
+        rd := decoder.io.rd
+        opcode := decoder.io.opcode
+        func3 := decoder.io.func3
+        func7 := decoder.io.func7
+        instruction_pointer := io.instruction_pointer
+        valid := io.valid && !io.flush
+    }
 
     io.decoded.rs1 := rs1
     io.decoded.rs1_value := 0.U
@@ -66,10 +78,6 @@ class DecodeStage() extends Module {
     io.decoded.opcode := opcode
     io.decoded.func3 := func3
     io.decoded.func7 := func7
-
-    io.decoded.instruction_pointer := io.instruction_pointer
-
-    val valid = RegInit(false.B)
-    valid := io.valid && !io.flush
+    io.decoded.instruction_pointer := instruction_pointer
     io.next_valid := valid
 }

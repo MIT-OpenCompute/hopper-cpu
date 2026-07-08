@@ -15,15 +15,20 @@ class FetchStage() extends Module {
         val next_valid = Output(Bool())
 
         val flush = Input(Bool())
+
+        val next_ready = Input(Bool())
     })
 
     io.instruction := io.memory_read_value
 
     val next_instruction_pointer = RegInit(0.U(32.W))
-    next_instruction_pointer := io.program_pointer
-    io.next_instruction_pointer := next_instruction_pointer
-
     val valid = RegInit(false.B)
-    valid := io.execute && !io.flush
+
+    when(io.next_ready) {
+        next_instruction_pointer := io.program_pointer
+        valid := io.execute && !io.flush
+    }
+    
+    io.next_instruction_pointer := next_instruction_pointer
     io.next_valid := valid
 }
