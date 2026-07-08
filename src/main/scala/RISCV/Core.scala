@@ -133,7 +133,7 @@ when(io.execute) {
 // printf("\n\n\n=== Fetch ===\n")
 // printf("fetch op %d\n",fetch_op.asUInt)
 // printf("f2d valid: %b\n",  fetch.io.f2d.valid)
-printf("f2d pc: %d\n",  fetch.io.f2d.bits.pc)
+// printf("f2d pc: %d\n",  fetch.io.f2d.bits.pc)
 // printf("f2d inst: %b\n",  fetch.io.f2d.bits.inst)
 // printf("icache valid: %b\n",   fetch.io.icache_valid)
 // printf("jump_flush=%b fetch_op=%d redirect=%x\n", jump_flush, fetch_op.asUInt, execute.io.pc_redirect.bits)

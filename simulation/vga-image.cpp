@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
     }
     printf("Preloaded %d instructions into mock DDR3 space.\n", current_byte_addr / 4);
 
-    /
+    
     for (int i = 0; i < 10; i++) {
         dut->clock ^= 1;
         dut->io_vga_clk = dut->clock;

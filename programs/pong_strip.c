@@ -7,23 +7,19 @@ __attribute__((naked)) void _start(void) {
 }
 
 
-
 #define IMG_W 320
 #define IMG_H 240
 
 
 
-volatile unsigned char buffer[320];
 
-static void fill_buffer(){
-   for (int i = 0; i < 320; i++) {
-        buffer[i] = ( i>>2) ;
-    }
-}
+
+
+
 static void draw_image(volatile unsigned int* frame, int ox, int oy) {
     for (int y = 0; y < IMG_H; y++) {
-        for (int x = 0; x < 320; x++) {
-            frame[(oy + y) * 320 + (ox + x)] = (char)buffer[x];
+        for (int x = 0; x < IMG_W; x++) {
+            frame[(oy + y) * 320 + (ox + x)] = (char)132;
         }
     }
 }
