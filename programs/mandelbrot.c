@@ -41,11 +41,13 @@ frame[320 * py + px] = color;
 }
 }
 int main() {
-volatile unsigned int* frame = (volatile unsigned int*)0x8000000;
+volatile unsigned int* frame = (volatile unsigned int*)0x10000000;
+volatile unsigned int* timer = (volatile unsigned int*)0x8000004;
 int cx = -768;
 int cy = 0;
 int step = 0;
 while (1) {
+if(timer != 0){
 int zoom = 1536;
 for (int i = 0; i < step; i++) {
 zoom = (zoom * 3) / 4;
@@ -53,5 +55,6 @@ zoom = (zoom * 3) / 4;
 draw_mandelbrot(frame, cx, cy, zoom);
 step++;
 if (step > 8) step = 0;
+}
 }
 }

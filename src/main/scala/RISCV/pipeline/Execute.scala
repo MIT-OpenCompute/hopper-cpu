@@ -161,7 +161,14 @@ class Execute() extends Module {
             io.dcache_start := true.B
             io.memory_stall := true.B
             bundle.rd_wen := true.B
-            state := ExecState.MEM_WAIT
+
+            when(!io.handshake_bypass){
+              state := ExecState.MEM_WAIT
+            }.otherwise{
+              valid := true.B
+              bundle.rd_val := io.dcache_data
+              io.memory_stall := false.B             
+            }
         
            
           }

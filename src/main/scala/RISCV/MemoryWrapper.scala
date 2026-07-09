@@ -38,6 +38,7 @@ class MemoryWrapper() extends Module {
 
 
   val mem = Module(new MemoryInterface())
+  val hardwareTimer = Module(new HardwareTimer(100000000))
   mem.io.icache_req := io.icache_req
   mem.io.icache_start := io.icache_start
   io.icache_ready := mem.io.icache_ready
@@ -46,7 +47,8 @@ class MemoryWrapper() extends Module {
 
 
   val is_vga =  io.dcache_req.address >= 0x10000000.U
-  val is_excep = is_vga
+  val is_htimer = io.dcache_req.address === 0x8000004.U
+  val is_excep = is_vga || is_htimer
 
 
   io.address_vga := io.dcache_req.address - 0x10000000.U
@@ -59,7 +61,13 @@ class MemoryWrapper() extends Module {
   mem.io.dcache_start := io.dcache_start && !is_excep
   io.dcache_ready := mem.io.dcache_ready
   io.dcache_valid := mem.io.dcache_valid
-  io.dcache_data := mem.io.dcache_data
+  io.dcache_data := mem.io.dcache_data 
+
+  when(is_htimer){
+     io.dcache_data := hardwareTimer.io.micros
+  }
+
+
 
   mem.io.debug_req := io.debug_req
   mem.io.debug_start := io.debug_start
