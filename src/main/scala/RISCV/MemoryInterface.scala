@@ -129,12 +129,15 @@ class MemoryInterface() extends Module {
   io.mem_req.bits.addr  := Mux(debug_owns_port, debug_req_addr,  arbiter.io.mem_req.bits.addr)
   io.mem_req.bits.wdata := Mux(debug_owns_port, debug_req_wdata, arbiter.io.mem_req.bits.wdata)
 
-  arbiter.io.mem_req.ready := !debug_owns_port && io.mem_req.ready
+  arbiter.io.mem_req.ready :=  io.mem_req.ready
+// Route the memory response signals straight into the Arbiter
   arbiter.io.mem_resp      := io.mem_resp
-  arbiter.io.mem_valid     := io.mem_valid && !debug_owns_port
+  arbiter.io.mem_valid     := io.mem_valid // Let the arbiter handle gating internally
 
+  // Direct connection from arbiter demuxed lines to caches
   icache.io.line_result := io.mem_resp
   icache.io.line_valid  := arbiter.io.resp_to_icache
+  
   dcache.io.line_result := io.mem_resp
   dcache.io.line_valid  := arbiter.io.resp_to_dcache
 }

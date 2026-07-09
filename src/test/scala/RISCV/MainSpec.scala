@@ -40,34 +40,53 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
       new TestableUInt(dut.io.mem_resp).poke(0.U)
       new TestableClock(dut.clock).step(2)
 
-      for (cycle <- 0 until 1000) {
-        
-        if (new TestableBool(dut.io.mem_req.valid).peek().litToBoolean) {
-          new TestableBool(dut.io.mem_req.ready).poke(true.B)
-          
-          val requestedAddr = new TestableUInt(dut.io.mem_req.bits.addr).peek().litValue.toLong
-          
-          val alignedAddr = requestedAddr & ~0xFL 
-          val responseData = memoryModel.getOrElse(alignedAddr, BigInt(0))
+     for (cycle <- 0 until 30000) {
+  if (new TestableBool(dut.io.mem_req.valid).peek().litToBoolean) {
+    // 1. Acknowledge the request immediately
+    new TestableBool(dut.io.mem_req.ready).poke(true.B)
+    
+    val requestedAddr = new TestableUInt(dut.io.mem_req.bits.addr).peek().litValue.toLong
+    val alignedAddr   = requestedAddr & ~0xFL 
+    val isWrite       = new TestableBool(dut.io.mem_req.bits.write).peek().litToBoolean
 
-          println(s"[Cycle $cycle] CPU Requested Line Read at Addr: 0x${requestedAddr.toHexString}")
-          
-          new TestableClock(dut.clock).step(1)
-          new TestableBool(dut.io.mem_req.ready).poke(false.B)
-          
-          new TestableUInt(dut.io.mem_resp).poke(responseData.U(128.W))
-          new TestableBool(dut.io.mem_valid).poke(true.B)
-          
-          new TestableClock(dut.clock).step(1)
-          new TestableBool(dut.io.mem_valid).poke(false.B)
-          
-        } else {
-          new TestableBool(dut.io.mem_req.ready).poke(false.B)
-          new TestableClock(dut.clock).step(1)
-        }
-        
+    if (isWrite) {
+      // --- WRITEBACK HANDLING ---
+      val writeData = new TestableUInt(dut.io.mem_req.bits.wdata).peek().litValue
+      
+      // Update our simulation memory array with the new dirty cache line
+      memoryModel(alignedAddr) = writeData
+      println(s"[Cycle $cycle] WRITEBACK Captured at Addr: 0x${alignedAddr.toHexString} | Data: 0x${writeData.toString(16)}\n")
+      
+      // Move past the capture edge
+      new TestableClock(dut.clock).step(1)
+      new TestableBool(dut.io.mem_req.ready).poke(false.B)
+      
+      // Pulse response valid to tell the Arbiter/Cache the write transaction is complete
+      new TestableBool(dut.io.mem_valid).poke(true.B)
+      new TestableClock(dut.clock).step(1)
+      new TestableBool(dut.io.mem_valid).poke(false.B)
 
-      }
+    } else {
+      // --- READ LINE HANDLING ---
+      val responseData = memoryModel.getOrElse(alignedAddr, BigInt(0))
+      println(s"[Cycle $cycle] READ Requested Line at Addr: 0x${requestedAddr.toHexString}")
+      
+      new TestableClock(dut.clock).step(1)
+      new TestableBool(dut.io.mem_req.ready).poke(false.B)
+      
+      // Return the requested line data
+      new TestableUInt(dut.io.mem_resp).poke(responseData.U(128.W))
+      new TestableBool(dut.io.mem_valid).poke(true.B)
+      
+      new TestableClock(dut.clock).step(1)
+      new TestableBool(dut.io.mem_valid).poke(false.B)
+    }
+    
+  } else {
+    new TestableBool(dut.io.mem_req.ready).poke(false.B)
+    new TestableClock(dut.clock).step(1)
+  }
+}
     }
   }
 }

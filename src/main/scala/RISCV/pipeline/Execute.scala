@@ -150,7 +150,7 @@ class Execute() extends Module {
             io.dcache_req.address := addr
             io.dcache_req.read := true.B
             io.dcache_req.write := false.B
-                //  printf("\n\nLOADING LOADING %x\n\n",addr)
+                //  printf("LOADING LOADING %x\n",addr)
             io.dcache_req.op := MuxLookup(inst.func3, MemOp.LW)(Seq(
               "b000".U -> MemOp.LB,
               "b001".U -> MemOp.LH,
@@ -168,7 +168,7 @@ class Execute() extends Module {
 
           // Store
           is("b0100011".U) {
-            // printf("\n\nSTORING STORING %x addr: %x\n\n",inst.rs2_val, addr)
+            // printf("STORING STORING %x addr: %x inst: %d\n",inst.rs2_val, addr, inst.pc)
             io.dcache_req.address := addr
        
             io.dcache_req.write_data := inst.rs2_val
@@ -212,7 +212,9 @@ class Execute() extends Module {
       }.elsewhen(io.dcache_valid || io.handshake_bypass) {
         bundle.rd_val := io.dcache_data
         state := ExecState.IDLE
-        // printf("\n\nLOADED LOADED %x\n\n",io.dcache_data)
+        when(io.dcache_data.asUInt === 100.U){
+        printf("LOADED LOADED %x\n",io.dcache_data)
+        }
         io.memory_stall := false.B
         io.next_instruction.valid := true.B
         io.next_instruction.bits := bundle
@@ -223,7 +225,11 @@ class Execute() extends Module {
   }
 
   when(state === ExecState.IDLE) {
-    io.next_instruction.valid := valid && !io.flush
-    io.next_instruction.bits := bundle
+    val is_jump_or_branch = bundle.opcode === "b1101111".U || 
+                          bundle.opcode === "b1100111".U || 
+                          bundle.opcode === "b1100011".U
+
+  io.next_instruction.valid := valid && (!io.flush || is_jump_or_branch)
+  io.next_instruction.bits := bundle
   }
 }

@@ -13,20 +13,20 @@ __attribute__((naked)) void _start(void) {
 
 
 
-volatile unsigned char buffer[320];
+// volatile unsigned char buffer[320];
 
-static void fill_buffer(){
-   for (int i = 0; i < 320; i++) {
-        buffer[i] = ( i>>2) ;
-    }
-}
-static void draw_image(volatile unsigned int* frame, int ox, int oy) {
-    for (int y = 0; y < IMG_H; y++) {
-        for (int x = 0; x < 320; x++) {
-            frame[(oy + y) * 320 + (ox + x)] = (char)buffer[x];
-        }
-    }
-}
+// static void fill_buffer(){
+//    for (int i = 0; i < 320; i++) {
+//         buffer[i] = ( i>>2) ;
+//     }
+// }
+// static void draw_image(volatile unsigned int* frame, int ox, int oy) {
+//     for (int y = 0; y < IMG_H; y++) {
+//         for (int x = 0; x < 320; x++) {
+//             frame[(oy + y) * 320 + (ox + x)] = (char)buffer[x];
+//         }
+//     }
+// }
 
 
 
@@ -50,7 +50,7 @@ int main() {
     }
 
     while (1) {
-        draw_image(frame, 0, 0);
+        // draw_image(frame, 0, 0);
         for (int x = -2; x <= 2; x++) {
             for (int y = -2; y <= 2; y++) {
                 frame[320 * (ballY + y) + ballX + x] = 0x00;

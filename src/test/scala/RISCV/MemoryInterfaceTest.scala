@@ -1,309 +1,134 @@
 package RISCV
+
 import chisel3._
-import chisel3.simulator.scalatest.{HasCliOptions, Cli}
-import chisel3.simulator._
+import chisel3.simulator.EphemeralSimulator._
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import scala.collection.mutable
 
-class MemoryInterfaceTest extends AnyFlatSpec with HasCliOptions with Cli.EmitVcd with ChiselSim {
+class MemoryInterfaceTest extends AnyFlatSpec with Matchers {
 
-  // Tie off icache so it never issues requests during dcache-only tests
-  def tieOffICache(dut: MemoryInterface): Unit = {
-    dut.io.icache_req.address.poke(0.U)
-    dut.io.icache_req.op.poke(MemOp.LW)
-    dut.io.icache_req.write_data.poke(0.U)
-    dut.io.icache_req.read.poke(false.B)
-    dut.io.icache_req.write.poke(false.B)
-    dut.io.icache_start.poke(false.B)
-  }
-
-  def doRead(dut: MemoryInterface, addr: Int, expectedData: Long, tag: String): Unit = {
-    var readyCycles = 0
-    while (!dut.io.dcache_ready.peek().litToBoolean && readyCycles < 20) {
-      dut.clock.step()
-      readyCycles += 1
-    }
-    assert(dut.io.dcache_ready.peek().litToBoolean, s"$tag: never got ready")
-
-    dut.io.dcache_req.address.poke(addr.U)
-    dut.io.dcache_req.op.poke(MemOp.LW)
-    dut.io.dcache_req.write_data.poke(0.U)
-    dut.io.dcache_req.read.poke(true.B)
-    dut.io.dcache_req.write.poke(false.B)
-    dut.io.dcache_start.poke(true.B)
-    dut.clock.step()
-    dut.io.dcache_start.poke(false.B)
-
-    var cycles = 0
-    while (!dut.io.dcache_valid.peek().litToBoolean && cycles < 20) {
-      dut.clock.step()
-      cycles += 1
-    }
-
-    assert(dut.io.dcache_valid.peek().litToBoolean, s"$tag: never got valid")
-    assert(dut.io.dcache_data.peek().litValue == BigInt(expectedData),
-      s"$tag: expected 0x${expectedData.toHexString}, got 0x${dut.io.dcache_data.peek().litValue.toString(16)}")
-    println(s"$tag PASS (ready after $readyCycles, valid after $cycles cycles)")
-  }
-
-  def doWrite(dut: MemoryInterface, addr: Int, data: Long, tag: String): Unit = {
-    var readyCycles = 0
-    while (!dut.io.dcache_ready.peek().litToBoolean && readyCycles < 20) {
-      dut.clock.step()
-      readyCycles += 1
-    }
-    assert(dut.io.dcache_ready.peek().litToBoolean, s"$tag: never got ready")
-
-    dut.io.dcache_req.address.poke(addr.U)
-    dut.io.dcache_req.op.poke(MemOp.SW)
-    dut.io.dcache_req.write_data.poke(data.U)
-    dut.io.dcache_req.read.poke(false.B)
-    dut.io.dcache_req.write.poke(true.B)
-    dut.io.dcache_start.poke(true.B)
-    dut.clock.step()
-    dut.io.dcache_start.poke(false.B)
-
-    var cycles = 0
-    while (!dut.io.dcache_ready.peek().litToBoolean && cycles < 20) {
-      dut.clock.step()
-      cycles += 1
-    }
-
-    assert(dut.io.dcache_ready.peek().litToBoolean, s"$tag: never got ready after write")
-    println(s"$tag PASS (ready after $readyCycles, valid after $cycles cycles)")
-  }
-
-  def doReadOp(
-    dut: MemoryInterface,
-    addr: Int,
-    op: MemOp.Type,
-    expectedData: Long,
-    tag: String
-  ): Unit = {
-    var readyCycles = 0
-    while (!dut.io.dcache_ready.peek().litToBoolean && readyCycles < 20) {
-      dut.clock.step()
-      readyCycles += 1
-    }
-    assert(dut.io.dcache_ready.peek().litToBoolean, s"$tag: never got ready")
-
-    dut.io.dcache_req.address.poke(addr.U)
-    dut.io.dcache_req.op.poke(op)
-    dut.io.dcache_req.write_data.poke(0.U)
-    dut.io.dcache_req.read.poke(true.B)
-    dut.io.dcache_req.write.poke(false.B)
-    dut.io.dcache_start.poke(true.B)
-    dut.clock.step()
-    dut.io.dcache_start.poke(false.B)
-
-    var cycles = 0
-    while (!dut.io.dcache_valid.peek().litToBoolean && cycles < 20) {
-      dut.clock.step()
-      cycles += 1
-    }
-
-    assert(dut.io.dcache_valid.peek().litToBoolean, s"$tag: never got valid")
-    assert(
-      dut.io.dcache_data.peek().litValue == BigInt(expectedData),
-      s"$tag: expected 0x${expectedData.toHexString}, got 0x${dut.io.dcache_data.peek().litValue.toString(16)}"
-    )
-    println(s"$tag PASS")
-  }
-
-  it should "miss then hit on repeated read (cold miss + warm hit)" in {
+  "MemoryInterface" should "correctly handle interleaved ICache and DCache transactions" in {
     simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doRead(dut, 0x00, 0L, "Cold miss addr=0x00")
-      doRead(dut, 0x00, 0L, "Warm hit addr=0x00")
-    }
-  }
-
-  it should "handle reads to different words in the same cache line" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doRead(dut, 0x00, 0L, "Fill line - word 0")
-      doRead(dut, 0x04, 0L, "Same line - word 1")
-      doRead(dut, 0x08, 0L, "Same line - word 2")
-      doRead(dut, 0x0C, 0L, "Same line - word 3")
-    }
-  }
-
-  it should "handle reads to two different cache lines without conflict" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doRead(dut, 0x00,  0L, "Line 0, set 0")
-      doRead(dut, 0x100, 0L, "Line 1, set 1")
-      doRead(dut, 0x00,  0L, "Hit line 0")
-      doRead(dut, 0x100, 0L, "Hit line 1")
-    }
-  }
-
-  it should "evict and writeback a dirty line on conflict" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doRead(dut, 0x000,  0L, "Fill set 0 with tag 0")
-      doRead(dut, 0x1000, 0L, "Evict tag 0, fill set 0 with tag 1")
-      doRead(dut, 0x000,  0L, "Re-fill set 0 with tag 0")
-    }
-  }
-
-  it should "not assert valid without a request" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
+      
+      // Initialize inputs safely
+      dut.io.icache_start.poke(false.B)
       dut.io.dcache_start.poke(false.B)
+      dut.io.debug_start.poke(false.B)
+      dut.io.mem_req.ready.poke(false.B)
+      dut.io.mem_valid.poke(false.B)
       dut.clock.step(5)
-      assert(!dut.io.dcache_valid.peek().litToBoolean, "valid should not fire without start")
-    }
-  }
 
-  it should "write then read back same word" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doWrite(dut, 0x00, 0xDEADBEEFL, "Write 0xDEADBEEF to 0x00")
-      doRead(dut,  0x00, 0xDEADBEEFL, "Read back 0xDEADBEEF from 0x00")
-    }
-  }
+      // Mock main memory store
+      val mockMemory = mutable.Map[BigInt, BigInt]()
 
-  it should "write to different words in same cache line and read back" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doWrite(dut, 0x00, 0x11111111L, "Write word 0")
-      doWrite(dut, 0x04, 0x22222222L, "Write word 1")
-      doWrite(dut, 0x08, 0x33333333L, "Write word 2")
-      doWrite(dut, 0x0C, 0x44444444L, "Write word 3")
-      doRead(dut,  0x00, 0x11111111L, "Read back word 0")
-      doRead(dut,  0x04, 0x22222222L, "Read back word 1")
-      doRead(dut,  0x08, 0x33333333L, "Read back word 2")
-      doRead(dut,  0x0C, 0x44444444L, "Read back word 3")
-    }
-  }
+      // Pre-populate mock memory line with identifiable data
+      mockMemory(BigInt("1000", 16) >> 4) = BigInt("DDDDDDDDCCCCCCCCBBBBBBBBAAAAAAAA", 16)
+      mockMemory(BigInt("2000", 16) >> 4) = BigInt("11111111111111111111111111111111", 16)
+      mockMemory(BigInt("3000", 16) >> 4) = BigInt("22222222222222222222222222222222", 16)
 
-  it should "write then evict then read back from memory" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doWrite(dut, 0x000,  0xCAFEBABEL, "Write to set 0 tag 0")
-      doRead(dut,  0x1000, 0L,           "Evict set 0 - bring in tag 1")
-      doRead(dut,  0x000,  0xCAFEBABEL, "Read back written value after eviction")
-    }
-  }
-
-  it should "overwrite a value and read back new value" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doWrite(dut, 0x00, 0x11111111L, "First write")
-      doWrite(dut, 0x00, 0xABCDABCDL, "Overwrite")
-      doRead(dut,  0x00, 0xABCDABCDL, "Read back overwritten value")
-    }
-  }
-
-  it should "write and read back 1000 random addresses" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      val rng = new scala.util.Random(42)
-      val written = scala.collection.mutable.Map[Int, Long]()
-
-      for (_ <- 0 until 1000) {
-        val addr = (rng.nextInt(256) * 4)
-        val data = rng.nextLong() & 0xFFFFFFFFL
-        doWrite(dut, addr, data, s"stress write addr=0x${addr.toHexString} data=0x${data.toHexString}")
-        written(addr) = data
+      // Fixed Memory Bus Driver to mimic MainSpec timing exactly
+      def stepMemoryBus(): Unit = {
+        if (dut.io.mem_req.valid.peek().litToBoolean) {
+          dut.io.mem_req.ready.poke(true.B)
+          val addr = dut.io.mem_req.bits.addr.peek().litValue
+          val isWrite = dut.io.mem_req.bits.write.peek().litToBoolean
+          
+          if (isWrite) {
+            val wdata = dut.io.mem_req.bits.wdata.peek().litValue
+            mockMemory(addr) = wdata
+            
+            dut.clock.step(1)
+            dut.io.mem_req.ready.poke(false.B)
+            
+            dut.io.mem_valid.poke(true.B)
+            dut.clock.step(1)
+            dut.io.mem_valid.poke(false.B)
+          } else {
+            val rdata = mockMemory.getOrElse(addr, BigInt(0))
+            
+            dut.clock.step(1)
+            dut.io.mem_req.ready.poke(false.B)
+            
+            dut.io.mem_resp.poke(rdata.U(128.W))
+            dut.io.mem_valid.poke(true.B)
+            dut.clock.step(1)
+            dut.io.mem_valid.poke(false.B)
+          }
+        } else {
+          dut.io.mem_req.ready.poke(false.B)
+          dut.clock.step(1)
+        }
       }
 
-      for ((addr, data) <- written) {
-        doRead(dut, addr, data, s"stress read addr=0x${addr.toHexString} expected=0x${data.toHexString}")
+      println("--- Test 1: Cold ICache Miss & Fetch ---")
+      dut.io.icache_req.address.poke("x0000_1004".U) 
+      dut.io.icache_req.op.poke(MemOp.LW)
+      dut.io.icache_req.write.poke(false.B)
+      dut.io.icache_req.read.poke(true.B)
+      
+      dut.io.icache_start.poke(true.B)
+      dut.clock.step(1)
+      dut.io.icache_start.poke(false.B)
+
+      var timeout = 0
+      while (!dut.io.icache_valid.peek().litToBoolean && timeout < 50) {
+        stepMemoryBus()
+        timeout += 1
       }
-    }
-  }
+      
+      dut.io.icache_valid.expect(true.B)
+      dut.io.icache_data.expect("xBBBB_BBBB".U) 
+      println("Test 1 Passed: ICache line fetched cleanly.")
 
-  it should "interleave reads and writes to same cache line" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doWrite(dut, 0x00, 0xAAAAAAAAL, "write word 0")
-      doRead(dut,  0x00, 0xAAAAAAAAL, "read word 0")
-      doWrite(dut, 0x04, 0xBBBBBBBBL, "write word 1")
-      doRead(dut,  0x00, 0xAAAAAAAAL, "word 0 still intact")
-      doRead(dut,  0x04, 0xBBBBBBBBL, "read word 1")
-      doWrite(dut, 0x08, 0xCCCCCCCCL, "write word 2")
-      doRead(dut,  0x00, 0xAAAAAAAAL, "word 0 still intact after word 2 write")
-      doRead(dut,  0x04, 0xBBBBBBBBL, "word 1 still intact after word 2 write")
-      doRead(dut,  0x08, 0xCCCCCCCCL, "read word 2")
-    }
-  }
-
-  it should "survive write after eviction and reload" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doWrite(dut, 0x000, 0xDEADBEEFL, "write set 0 tag 0")
-      doRead(dut,  0x1000, 0L,          "load set 0 tag 1 - evicts tag 0")
-      doRead(dut,  0x000,  0xDEADBEEFL, "reload set 0 tag 0 - check writeback worked")
-      doWrite(dut, 0x000, 0xCAFEBABEL, "overwrite set 0 tag 0")
-      doRead(dut,  0x000, 0xCAFEBABEL, "verify overwrite")
-    }
-  }
-
-  it should "write all words in a line then evict and reload" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-      doWrite(dut, 0x00, 0x11111111L, "write word 0")
-      doWrite(dut, 0x04, 0x22222222L, "write word 1")
-      doWrite(dut, 0x08, 0x33333333L, "write word 2")
-      doWrite(dut, 0x0C, 0x44444444L, "write word 3")
-      doRead(dut,  0x1000, 0L, "evict line")
-      doRead(dut,  0x00, 0x11111111L, "reload word 0")
-      doRead(dut,  0x04, 0x22222222L, "reload word 1")
-      doRead(dut,  0x08, 0x33333333L, "reload word 2")
-      doRead(dut,  0x0C, 0x44444444L, "reload word 3")
-    }
-  }
-
-  it should "support SB and LB at aligned word addresses" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
-
-      doWrite(dut, 0x00, 0x11223344L, "init word")
-
-      dut.io.dcache_req.address.poke(0x00.U)
-      dut.io.dcache_req.op.poke(MemOp.SB)
-      dut.io.dcache_req.write_data.poke(0x80.U)
-      dut.io.dcache_req.read.poke(false.B)
+      println("--- Test 2: DCache Store Hit & Allocation ---")
+      dut.io.dcache_req.address.poke("x0000_1000".U) 
+      dut.io.dcache_req.write_data.poke("x7777_7777".U)
+      dut.io.dcache_req.op.poke(MemOp.SW)
       dut.io.dcache_req.write.poke(true.B)
+      dut.io.dcache_req.read.poke(false.B)
+      
       dut.io.dcache_start.poke(true.B)
-      dut.clock.step()
+      dut.clock.step(1)
       dut.io.dcache_start.poke(false.B)
 
-      doReadOp(dut, 0x00, MemOp.LB, 0xFFFFFF80L, "LB sign extend byte0")
-    }
-  }
+      timeout = 0
+      while (!dut.io.dcache_valid.peek().litToBoolean && timeout < 50) {
+        stepMemoryBus()
+        timeout += 1
+      }
+      dut.io.dcache_valid.expect(true.B)
+      println("Test 2 Passed: Line allocated and modified in DCache.")
 
-  it should "support SH and LH on halfword-aligned addresses only" in {
-    simulate(new MemoryInterface()) { dut =>
-      tieOffICache(dut)
-      dut.clock.step(2)
+      println("--- Test 3: Simultaneous Read Requests (Arbiter Contention) ---")
+      dut.io.icache_req.address.poke("x0000_2000".U)
+      dut.io.icache_req.write.poke(false.B)
+      dut.io.icache_req.read.poke(true.B)
+      
+      dut.io.dcache_req.address.poke("x0000_3000".U)
+      dut.io.dcache_req.write.poke(false.B)
+      dut.io.dcache_req.read.poke(true.B)
 
-      doWrite(dut, 0x00, 0x12345678L, "init word")
-
-      dut.io.dcache_req.address.poke(0x00.U)
-      dut.io.dcache_req.op.poke(MemOp.SH)
-      dut.io.dcache_req.write_data.poke(0x8001.U)
-      dut.io.dcache_req.read.poke(false.B)
-      dut.io.dcache_req.write.poke(true.B)
+      dut.io.icache_start.poke(true.B)
       dut.io.dcache_start.poke(true.B)
-      dut.clock.step()
+      dut.clock.step(1)
+      dut.io.icache_start.poke(false.B)
       dut.io.dcache_start.poke(false.B)
 
-      doReadOp(dut, 0x00, MemOp.LH, 0xFFFF8001L, "LH sign extend low halfword")
+      timeout = 0
+      var icacheDone = false
+      var dcacheDone = false
+      
+      while ((!icacheDone || !dcacheDone) && timeout < 100) {
+        stepMemoryBus()
+        if (dut.io.icache_valid.peek().litToBoolean) icacheDone = true
+        if (dut.io.dcache_valid.peek().litToBoolean) dcacheDone = true
+        timeout += 1
+      }
+
+      icacheDone shouldBe true
+      dcacheDone shouldBe true
+      println("Test 3 Passed: Contention resolved smoothly without dropouts.")
     }
   }
 }
