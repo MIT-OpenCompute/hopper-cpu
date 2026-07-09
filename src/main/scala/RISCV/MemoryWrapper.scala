@@ -45,16 +45,18 @@ class MemoryWrapper() extends Module {
   io.icache_data := mem.io.icache_data
 
 
-  val is_vga =  io.dcache_req.address >= 0x4000000.U
+  val is_vga =  io.dcache_req.address >= 0x10000000.U
+  val is_excep = is_vga
 
-  io.address_vga := io.dcache_req.address - 0x4000000.U
+
+  io.address_vga := io.dcache_req.address - 0x10000000.U
   io.write_vga := is_vga && io.dcache_req.write && io.dcache_start
   io.write_value_vga := io.dcache_req.write_data
 
-  io.handshake_bypass := is_vga
+  io.handshake_bypass := is_excep
 
   mem.io.dcache_req := io.dcache_req
-  mem.io.dcache_start := io.dcache_start && !is_vga
+  mem.io.dcache_start := io.dcache_start && !is_excep
   io.dcache_ready := mem.io.dcache_ready
   io.dcache_valid := mem.io.dcache_valid
   io.dcache_data := mem.io.dcache_data

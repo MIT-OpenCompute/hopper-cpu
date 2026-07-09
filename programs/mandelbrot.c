@@ -1,6 +1,6 @@
 __attribute__((naked)) void _start(void) {
     __asm__ volatile(
-"li sp, 0x4000000\n"
+"li sp, 0x8000000\n"
 "call main\n"
 "loop: j loop\n"
 );
@@ -41,7 +41,7 @@ frame[320 * py + px] = color;
 }
 }
 int main() {
-volatile unsigned int* frame = (volatile unsigned int*)0x4000000;
+volatile unsigned int* frame = (volatile unsigned int*)0x8000000;
 int cx = -768;
 int cy = 0;
 int step = 0;
