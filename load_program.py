@@ -18,7 +18,7 @@ import argparse
 # -------------------------------------------------------
 # Argument parsing
 # -------------------------------------------------------
-parser = argparse.ArgumentParser(description="Load a RISC-V hex program onto FPGA over UART")
+parser = argparse.ArgumentParser(description="Load a RIsSC-V hex program onto FPGA over UART")
 parser.add_argument("hex_file",              help="Path to the .hex program file")
 parser.add_argument("--port",  default="COM3", help="Serial port (default: COM3)")
 parser.add_argument("--baud",  default=6000000, type=int, help="Baud rate (default: 115200)")

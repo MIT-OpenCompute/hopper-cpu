@@ -32,7 +32,7 @@ __attribute__((naked)) void _start(void) {
 
 
 int main() {
-    volatile unsigned int* frame = (volatile unsigned int*)0x4000000;
+    volatile unsigned int* frame = (volatile unsigned int*)0x10000000;
 
     int paddY1 = 120;
     int paddY2 = 120;
