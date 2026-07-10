@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
     std::map<uint32_t, std::vector<uint8_t>> mock_ddr3;
 
-    std::ifstream file("/home/arya/Documents/Github/RISC-V/programs/hello.hex");
+    std::ifstream file("/home/liamh/RISC-V/programs/doom.hex");
     if (!file.is_open()) {
         printf("Error: Could not open hello.hex file!\n");
         return -1;
@@ -237,9 +237,9 @@ int main(int argc, char** argv) {
             dut->io_vga_clk = 0; 
             dut->eval();
 
-            if (prev_vsync && !vsync) {
-                printf("vsync mid-frame at cycle %d — counter mismatch!\n", cycle);
-            }
+            // if (prev_vsync && !vsync) {
+            //     printf("vsync mid-frame at cycle %d — counter mismatch!\n", cycle);
+            // }
             prev_vsync = vsync;
 
             if (!blanking && pixelIdx < H_VISIBLE * V_VISIBLE) {
@@ -250,14 +250,14 @@ int main(int argc, char** argv) {
             }
         }
 
-        printf("Captured %d pixels (expected %d)\n", pixelIdx, H_VISIBLE * V_VISIBLE);
+        // printf("Captured %d pixels (expected %d)\n", pixelIdx, H_VISIBLE * V_VISIBLE);
 
         FILE* f = fopen("frame.ppm", "wb");
         if (!f) { perror("fopen"); return 1; }
         fprintf(f, "P6\n%d %d\n255\n", H_VISIBLE, V_VISIBLE);
         fwrite(pixels.data(), 1, pixels.size(), f);
         fclose(f);
-        if (system("ffmpeg -i frame.ppm frame.png -y") != 0) {
+        if (system("ffmpeg -i frame.ppm frame.png -y > /dev/null 2>&1") != 0) {
              printf("Frame dumped out to local disk as frame.ppm safely.\n");
         }
     }
