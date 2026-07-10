@@ -34,7 +34,7 @@ class VGAController extends Module {
     when(io.write) {
         memory.write(io.address >> 2, io.write_value)
 
-        printf("\n\nWRITING TO VGA: %d %b\n\n", io.address, io.write_value);
+        // printf("\n\nWRITING TO VGA: %d %b\n\n", io.address, io.write_value);
     }
 
     io.hsync := true.B

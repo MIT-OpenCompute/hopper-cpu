@@ -79,11 +79,9 @@ class DCache() extends Module {
     val status = meta_out(meta_out.getWidth-1, meta_out.getWidth-2) 
     val tag    = meta_out(meta_out.getWidth-3, 0)    
 
-    // Hardware Stability Fixes: Local registers to buffer writeback values safely
     val wb_data_reg = RegInit(0.U(128.W))
     val wb_addr_reg = RegInit(0.U(32.W))
 
-    // FIX: Tracking bit to make sure line_valid went low after a WRITEBACK 
     val valid_cleared = RegInit(true.B)
 
     io.ready     := state === CacheState.IDLE
@@ -99,7 +97,7 @@ class DCache() extends Module {
             when(io.start) {
                 current_mem_req := io.req
                 state := CacheState.LOOKUP
-                valid_cleared := true.B // Reset tracking flag
+                valid_cleared := true.B 
             }
         }
 
@@ -189,8 +187,9 @@ class DCache() extends Module {
         }
 
         is(CacheState.WRITEBACK) {
+            // printf("\nIN WRITEBACK IN TWRIT E BACK\n")
+
             when(io.line_valid) {
-                // printf("\n\n\n\n\n\n IN WRITEBACK IN TWRIT E BACK\n\n\n\n\n\n")
                 state := CacheState.MISS
             }
         }

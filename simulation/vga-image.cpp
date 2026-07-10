@@ -20,9 +20,7 @@ static constexpr int V_SYNC    = 2;
 static constexpr int V_BACK    = 33;
 static constexpr int V_TOTAL   = V_VISIBLE + V_FRONT + V_SYNC + V_BACK;
 
-// Commits a write request's 128-bit wdata into the mock DDR3 row at the
-// aligned address. io_mem_req_bits_wdata is a 128-bit signal, so Verilator
-// exposes it the same way io_mem_resp already is: a 4-element uint32 array.
+// Commits a write request's 128-bit wdata into the mock DDR3 row at the aligned address.
 static void handle_mem_write(std::unique_ptr<VMain>& dut,
                               std::map<uint32_t, std::vector<uint8_t>>& mock_ddr3) {
     uint32_t addr = dut->io_mem_req_bits_addr;
@@ -50,8 +48,8 @@ int main(int argc, char** argv) {
     dut->reset      = 1;
     dut->clock      = 0;
     dut->io_vga_clk = 0;
+    dut->io_rxd = 1;
 
-    
     std::map<uint32_t, std::vector<uint8_t>> mock_ddr3;
 
     std::ifstream file("/home/arya/Documents/Github/RISC-V/programs/hello.hex");
@@ -83,7 +81,6 @@ int main(int argc, char** argv) {
     }
     printf("Preloaded %d instructions into mock DDR3 space.\n", current_byte_addr / 4);
 
-    
     for (int i = 0; i < 10; i++) {
         dut->clock ^= 1;
         dut->io_vga_clk = dut->clock;
@@ -95,25 +92,31 @@ int main(int argc, char** argv) {
     bool prev_vsync = 1;
     int pixelIdx = 0;
 
+    // --- State variables for tracking memory operations ---
     bool read_in_progress = false;
     int  read_latency_counter = 0;
     uint32_t active_read_addr = 0;
 
+    bool write_in_progress = false;
+    int  write_latency_counter = 0;
+
     while (1) {
         pixelIdx = 0;
 
-    
         while (true) {
-           
             dut->clock = 1; 
             dut->io_vga_clk = 1; 
 
-         
+            // 1. Process Incoming Handshakes
             if (dut->io_mem_req_valid) {
                 dut->io_mem_req_ready = 1; 
 
                 if (dut->io_mem_req_bits_write) {
-                    handle_mem_write(dut, mock_ddr3);
+                    if (!write_in_progress) {
+                        handle_mem_write(dut, mock_ddr3);
+                        write_in_progress = true;
+                        write_latency_counter = 1; // 1-cycle latency response for writes
+                    }
                 } else if (!read_in_progress) {
                     read_in_progress = true;
                     read_latency_counter = 4; 
@@ -123,13 +126,21 @@ int main(int argc, char** argv) {
                 dut->io_mem_req_ready = 0;
             }
 
-            if (read_in_progress) {
+            // 2. Return Responses / Manage Timing
+            if (write_in_progress) {
+                if (write_latency_counter > 0) {
+                    write_latency_counter--;
+                    dut->io_mem_valid = 0;
+                } else {
+                    dut->io_mem_valid = 1; // Pulse valid high for write acknowledgement
+                    write_in_progress = false;
+                }
+            } else if (read_in_progress) {
                 if (read_latency_counter > 0) {
                     read_latency_counter--;
                     dut->io_mem_valid = 0;
                 } else {
                     dut->io_mem_valid = 1;
-                    
                     uint32_t target_aligned_addr = (active_read_addr / 16) * 16;
                     
                     if (mock_ddr3.find(target_aligned_addr) != mock_ddr3.end()) {
@@ -165,11 +176,16 @@ int main(int argc, char** argv) {
             dut->clock = 1; 
             dut->io_vga_clk = 1;
 
+            // 1. Process Incoming Handshakes
             if (dut->io_mem_req_valid) {
                 dut->io_mem_req_ready = 1;
 
                 if (dut->io_mem_req_bits_write) {
-                    handle_mem_write(dut, mock_ddr3);
+                    if (!write_in_progress) {
+                        handle_mem_write(dut, mock_ddr3);
+                        write_in_progress = true;
+                        write_latency_counter = 1;
+                    }
                 } else if (!read_in_progress) {
                     read_in_progress = true;
                     read_latency_counter = 4;
@@ -179,7 +195,16 @@ int main(int argc, char** argv) {
                 dut->io_mem_req_ready = 0;
             }
 
-            if (read_in_progress) {
+            // 2. Return Responses / Manage Timing
+            if (write_in_progress) {
+                if (write_latency_counter > 0) {
+                    write_latency_counter--;
+                    dut->io_mem_valid = 0;
+                } else {
+                    dut->io_mem_valid = 1;
+                    write_in_progress = false;
+                }
+            } else if (read_in_progress) {
                 if (read_latency_counter > 0) {
                     read_latency_counter--;
                     dut->io_mem_valid = 0;

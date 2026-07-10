@@ -175,7 +175,7 @@ class Execute() extends Module {
 
           // Store
           is("b0100011".U) {
-            // printf("STORING STORING %x addr: %x inst: %d\n",inst.rs2_val, addr, inst.pc)
+            printf("STORING STORING %x addr: %x inst: %d\n",inst.rs2_val, addr, inst.pc)
             io.dcache_req.address := addr
        
             io.dcache_req.write_data := inst.rs2_val

@@ -68,55 +68,25 @@ class MemoryInterface() extends Module {
   val debug_req_addr  = WireDefault(0.U(32.W))
   val debug_req_wdata = WireDefault(0.U(128.W))
 
-  switch(debug_state) {
-    is(DebugState.D_IDLE) {
-      when(io.debug_start && io.debug_req.write && debug_can_start) {
-
-        debug_buf(debug_word_off) := io.debug_req.write_data
-        val patched = Wire(Vec(4, UInt(32.W)))
-        for (i <- 0 until 4) { patched(i) := debug_buf(i) }
-        patched(debug_word_off) := io.debug_req.write_data
-
-        debug_pending_addr  := debug_line_byte_addr
-        debug_pending_wdata := patched.asUInt
-        debug_state := DebugState.D_ISSUE
-      }
-    }
-    is(DebugState.D_ISSUE) {
-      debug_req_valid := true.B
-      debug_req_write := true.B
-      debug_req_addr  := debug_pending_addr
-      debug_req_wdata := debug_pending_wdata
-      when(io.mem_req.valid && io.mem_req.ready) {
-        debug_state := DebugState.D_WAIT
-      }
-    }
-    is(DebugState.D_WAIT) {
-      when(io.mem_req.ready) {
-        io.debug_valid := true.B
-        debug_state := DebugState.D_IDLE
-      }
-    }
-  }
-
+  
   icache.io.req   := io.icache_req
-  icache.io.start := io.icache_start && !io.debug_start
-  io.icache_ready := icache.io.ready && !io.debug_start
+  icache.io.start := io.icache_start 
+  io.icache_ready := icache.io.ready 
   io.icache_valid := icache.io.done
   io.icache_data  := icache.io.data
 
   dcache.io.req   := io.dcache_req
-  dcache.io.start := io.dcache_start && !io.debug_start
-  io.dcache_ready := dcache.io.ready && !io.debug_start
+  dcache.io.start := io.dcache_start
+  io.dcache_ready := dcache.io.ready 
   io.dcache_valid := dcache.io.done
   io.dcache_data  := dcache.io.data
 
-  arbiter.io.icache_req.valid      := icache.io.miss && !io.debug_start
+  arbiter.io.icache_req.valid      := icache.io.miss
   arbiter.io.icache_req.bits.addr  := icache.io.line_addr
   arbiter.io.icache_req.bits.write := false.B
   arbiter.io.icache_req.bits.wdata := 0.U
 
-  arbiter.io.dcache_req.valid      := (dcache.io.miss || dcache.io.wb) && !io.debug_start
+  arbiter.io.dcache_req.valid      := (dcache.io.miss || dcache.io.wb) 
   arbiter.io.dcache_req.bits.addr  := Mux(dcache.io.wb, dcache.io.wb_addr, dcache.io.line_addr)
   arbiter.io.dcache_req.bits.write := dcache.io.wb
   arbiter.io.dcache_req.bits.wdata := dcache.io.wb_data
@@ -124,10 +94,10 @@ class MemoryInterface() extends Module {
 
   val debug_owns_port = (debug_state === DebugState.D_ISSUE)
 
-  io.mem_req.valid      := Mux(debug_owns_port, debug_req_valid, arbiter.io.mem_req.valid)
-  io.mem_req.bits.write := Mux(debug_owns_port, debug_req_write, arbiter.io.mem_req.bits.write)
-  io.mem_req.bits.addr  := Mux(debug_owns_port, debug_req_addr,  arbiter.io.mem_req.bits.addr)
-  io.mem_req.bits.wdata := Mux(debug_owns_port, debug_req_wdata, arbiter.io.mem_req.bits.wdata)
+  io.mem_req.valid      := arbiter.io.mem_req.valid
+  io.mem_req.bits.write := arbiter.io.mem_req.bits.write
+  io.mem_req.bits.addr  := arbiter.io.mem_req.bits.addr
+  io.mem_req.bits.wdata := arbiter.io.mem_req.bits.wdata
 
   arbiter.io.mem_req.ready :=  io.mem_req.ready
 // Route the memory response signals straight into the Arbiter

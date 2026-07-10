@@ -71,9 +71,10 @@ class CacheArbiter() extends Module {
     io.resp_to_icache   := io.mem_valid && serving_icache
     io.resp_to_dcache   := io.mem_valid && serving_dcache
     io.idle             := idle
-
+    // printf("MemValid %d\n", io.mem_valid)
     // 6. Arbiter Logging Snippet
     when(false.B) {
+      
       printf(
         "ARBITER cycle: idle=%d serve_I=%d serve_D=%d | I_req=[v=%d r=%d a=%x w=%d wd=%x] | D_req=[v=%d r=%d a=%x w=%d wd=%x] | mem_req=[v=%d r=%d a=%x w=%d wd=%x] | mem_resp=[v=%d d=%x] | resp_to_I=%d resp_to_D=%d\n",
         io.idle,
@@ -105,4 +106,27 @@ class CacheArbiter() extends Module {
         io.resp_to_dcache
       )
     }
+
+    // // 6. Arbiter Logging Snippet
+    // // Trigger on any active write request being accepted or currently processed
+    // val incoming_dcache_write = io.dcache_req.valid && io.dcache_req.ready && io.dcache_req.bits.write
+    // val incoming_icache_write = io.icache_req.valid && io.icache_req.ready && io.icache_req.bits.write
+    // val ongoing_write_to_mem  = io.mem_req.valid && io.mem_req.bits.write
+
+    // when(incoming_dcache_write || incoming_icache_write || ongoing_write_to_mem) {
+    //   printf("--- ARBITER WRITE DETECTED ---\n")
+      
+    //   when(incoming_dcache_write) {
+    //     printf("  [LATCHED D-CACHE WRITE] Addr: 0x%x | Data: 0x%x\n", 
+    //       io.dcache_req.bits.addr, io.dcache_req.bits.wdata)
+    //   }
+    //   when(incoming_icache_write) {
+    //     printf("  [LATCHED I-CACHE WRITE] Addr: 0x%x | Data: 0x%x\n", 
+    //       io.icache_req.bits.addr, io.icache_req.bits.wdata)
+    //   }
+    //   when(ongoing_write_to_mem) {
+    //     printf("  [MEM REQ WRITE OUT]     Ready: %d | Addr: 0x%x | Data: 0x%x\n", 
+    //       io.mem_req.ready, io.mem_req.bits.addr, io.mem_req.bits.wdata)
+    //   }
+    // }
 }
