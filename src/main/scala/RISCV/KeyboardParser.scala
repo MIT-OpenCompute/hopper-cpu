@@ -1,7 +1,8 @@
-package usbhost
+
 
 import chisel3._
 import chisel3.util._
+import _root_.circt.stage.ChiselStage
 
 /** ---------------------------------------------------------------------
  *  MAX3421E register addresses / bit positions.
@@ -74,10 +75,24 @@ object Max3421 {
   val HXFR_INHS  = 0x80.U(8.W) // handshake IN, OR with EP -- control-transfer status stage
   val HXFR_OUTHS = 0xA0.U(8.W) // OR with EP
 
-  // HRSL (R31) low nibble: result code. 0 = success; nonzero includes NAK,
-  // which is the normal/expected response from a keyboard between keypresses.
+  // HRSL (R31) low nibble: result code (confirmed against USB_Host_Shield_2.0's max3421e.h)
   val HRSL_CODE_MASK = 0x0F.U(8.W)
   val HRSL_SUCCESS   = 0x00.U(8.W)
+  val HRSL_BUSY      = 0x01.U(8.W)
+  val HRSL_BADREQ    = 0x02.U(8.W)
+  val HRSL_UNDEF     = 0x03.U(8.W)
+  val HRSL_NAK       = 0x04.U(8.W) // normal/expected -- device says "not ready yet, retry"
+  val HRSL_STALL     = 0x05.U(8.W)
+  val HRSL_TOGERR    = 0x06.U(8.W)
+  val HRSL_WRONGPID  = 0x07.U(8.W)
+  val HRSL_BADBC     = 0x08.U(8.W)
+  val HRSL_PIDERR    = 0x09.U(8.W)
+  val HRSL_PKTERR    = 0x0A.U(8.W)
+  val HRSL_CRCERR    = 0x0B.U(8.W)
+  val HRSL_KERR      = 0x0C.U(8.W)
+  val HRSL_JERR      = 0x0D.U(8.W)
+  val HRSL_TIMEOUT   = 0x0E.U(8.W) // nothing responded on the bus at all
+  val HRSL_BABBLE    = 0x0F.U(8.W)
 
   val KBD_EP = 1.U(8.W) // typical boot-keyboard interrupt-IN endpoint number
 }
@@ -164,6 +179,8 @@ class KeyboardParser(val clockFreq: Int = 100000000, val sclkDiv: Int = 8) exten
     val keycodes    = Output(Vec(6, UInt(8.W)))
     val reportValid = Output(Bool()) // one-cycle pulse on new report
     val enumDone    = Output(Bool()) // high once past enumeration, in poll loop
+    val debugState  = Output(UInt(5.W)) // raw FSM state number, for external debug/LEDs
+    val debugHrsl   = Output(UInt(4.W)) // last-read HRSL result-code nibble
   })
 
   // ---- SPI engine -------------------------------------------------
@@ -242,16 +259,47 @@ class KeyboardParser(val clockFreq: Int = 100000000, val sclkDiv: Int = 8) exten
   io.reportValid := validPulse
   validPulse := false.B
 
+  // ---- debug -----------------------------------------------------------
+  val lastHrsl = RegInit(0.U(4.W))
+  io.debugHrsl := lastHrsl
+
   // ---- top FSM --------------------------------------------------------
-  val sReset :: sWaitOsc :: sSetPinctl :: sSetCpuctl :: sSetMode :: sBusRstOn :: sBusRstWait ::
-    sBusRstOff :: sSettle :: sCtrlSudfifo :: sCtrlSudfifoWait :: sCtrlSetupXfr ::
-    sCtrlSetupWait :: sCtrlStatusXfr :: sCtrlStatusWait :: sCtrlNext :: sSetPeraddr ::
-    sSetPeraddrWait :: sPollWait :: sPollIssue :: sPollIssueWait :: sPollCheckResult ::
-    sPollReadBC :: sPollReadBCWait :: sPollReadFifo :: sPollReadFifoWait :: sPollClearIrq ::
-    sPollClearIrqWait :: sPollIdle :: Nil = Enum(29)
+  private val stateList = Enum(31)
+  val sReset            = stateList(0)
+  val sWaitOsc          = stateList(1)
+  val sSetPinctl        = stateList(2)
+  val sSetCpuctl        = stateList(3)
+  val sSetMode          = stateList(4)
+  val sBusRstOn         = stateList(5)
+  val sBusRstWait       = stateList(6)
+  val sBusRstOff        = stateList(7)
+  val sSettle           = stateList(8)
+  val sCtrlSudfifo      = stateList(9)
+  val sCtrlSudfifoWait  = stateList(10)
+  val sCtrlSetupXfr     = stateList(11)
+  val sCtrlSetupWait    = stateList(12)
+  val sCtrlSetupResult  = stateList(13)
+  val sCtrlStatusXfr    = stateList(14)
+  val sCtrlStatusWait   = stateList(15)
+  val sCtrlStatusResult = stateList(16)
+  val sCtrlNext         = stateList(17)
+  val sSetPeraddr       = stateList(18)
+  val sSetPeraddrWait   = stateList(19)
+  val sPollWait         = stateList(20)
+  val sPollIssue        = stateList(21)
+  val sPollIssueWait    = stateList(22)
+  val sPollCheckResult  = stateList(23)
+  val sPollReadBC       = stateList(24)
+  val sPollReadBCWait   = stateList(25)
+  val sPollReadFifo     = stateList(26)
+  val sPollReadFifoWait = stateList(27)
+  val sPollClearIrq     = stateList(28)
+  val sPollClearIrqWait = stateList(29)
+  val sPollIdle         = stateList(30)
 
   val state = RegInit(sReset)
   io.enumDone := state >= sPollWait
+  io.debugState := state
 
   io.usb_rst_b := true.B
 
@@ -319,7 +367,20 @@ class KeyboardParser(val clockFreq: Int = 100000000, val sclkDiv: Int = 8) exten
       when(!burstBusy && !burstDone) { readReg(Max3421.HIRQ) }
       when(burstDone && (burstRx(1) & Max3421.HIRQ_HXFRDN.U) =/= 0.U) {
         writeReg(Max3421.HIRQ, Max3421.HIRQ_HXFRDN.U) // ack
-        state := sCtrlStatusXfr
+        state := sCtrlSetupResult
+      }
+    }
+    is(sCtrlSetupResult) {
+      // HXFRDNIRQ fires on ANY completed attempt, including a NAK -- must
+      // check HRSL's result code, not just treat "done" as "succeeded".
+      when(!burstBusy && !burstDone) { readReg(Max3421.HRSL) }
+      when(burstDone) {
+        lastHrsl := burstRx(1)(3, 0)
+        when((burstRx(1) & Max3421.HRSL_CODE_MASK) === Max3421.HRSL_SUCCESS) {
+          state := sCtrlStatusXfr
+        }.otherwise {
+          state := sCtrlSetupXfr // retry the same SETUP token
+        }
       }
     }
     is(sCtrlStatusXfr) {
@@ -331,7 +392,18 @@ class KeyboardParser(val clockFreq: Int = 100000000, val sclkDiv: Int = 8) exten
       when(!burstBusy && !burstDone) { readReg(Max3421.HIRQ) }
       when(burstDone && (burstRx(1) & Max3421.HIRQ_HXFRDN.U) =/= 0.U) {
         writeReg(Max3421.HIRQ, Max3421.HIRQ_HXFRDN.U)
-        state := sCtrlNext
+        state := sCtrlStatusResult
+      }
+    }
+    is(sCtrlStatusResult) {
+      when(!burstBusy && !burstDone) { readReg(Max3421.HRSL) }
+      when(burstDone) {
+        lastHrsl := burstRx(1)(3, 0)
+        when((burstRx(1) & Max3421.HRSL_CODE_MASK) === Max3421.HRSL_SUCCESS) {
+          state := sCtrlNext
+        }.otherwise {
+          state := sCtrlStatusXfr // NAK is normal here -- device says "not ready", retry
+        }
       }
     }
     is(sCtrlNext) {
@@ -383,6 +455,7 @@ class KeyboardParser(val clockFreq: Int = 100000000, val sclkDiv: Int = 8) exten
       // transfer finished, but that includes NAK -- check HRSL's result code
       when(!burstBusy && !burstDone) { readReg(Max3421.HRSL) }
       when(burstDone) {
+        lastHrsl := burstRx(1)(3, 0)
         when((burstRx(1) & Max3421.HRSL_CODE_MASK) === Max3421.HRSL_SUCCESS) {
           state := sPollReadBC // got real data
         }.otherwise {
