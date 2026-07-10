@@ -34,11 +34,15 @@ class MemoryWrapper() extends Module {
     val write_vga = Output(Bool())
     val write_value_vga = Output(UInt(32.W))
     val handshake_bypass = Output(Bool())
+
+    val rxd = Input(Bool())
   })
 
 
   val mem = Module(new MemoryInterface())
   val hardwareTimer = Module(new HardwareTimer(100000000))
+  val keyTracker = Module(new UartKeyboardTracker(100000000, 115200)) 
+  keyTracker.io.rxd := io.rxd
   mem.io.icache_req := io.icache_req
   mem.io.icache_start := io.icache_start
   io.icache_ready := mem.io.icache_ready
@@ -46,9 +50,29 @@ class MemoryWrapper() extends Module {
   io.icache_data := mem.io.icache_data
 
 
-  val is_vga =  io.dcache_req.address >= 0x10000000.U
-  val is_htimer = io.dcache_req.address === 0x8000004.U
-  val is_excep = is_vga || is_htimer
+  val is_vga     = io.dcache_req.address >= 0x10000000.U
+  val is_htimer  = io.dcache_req.address === 0x8000004.U
+
+  val KEYTRACKER_BASE = 0x08000008.U
+  val is_keytracker = io.dcache_req.address >= KEYTRACKER_BASE &&
+                      io.dcache_req.address < (KEYTRACKER_BASE + 0x2C.U)
+  val keytracker_word = (io.dcache_req.address - KEYTRACKER_BASE)(5, 2)
+
+  val keytracker_rdata = MuxLookup(keytracker_word, 0.U(32.W))(Seq(
+    0.U  -> keyTracker.io.keyDown(31, 0),
+    1.U  -> keyTracker.io.keyDown(63, 32),
+    2.U  -> keyTracker.io.keyDown(95, 64),
+    3.U  -> keyTracker.io.keyDown(127, 96),
+    4.U  -> keyTracker.io.keyDown(159, 128),
+    5.U  -> keyTracker.io.keyDown(191, 160),
+    6.U  -> keyTracker.io.keyDown(223, 192),
+    7.U  -> keyTracker.io.keyDown(255, 224),
+    8.U  -> keyTracker.io.lastCode,
+    9.U  -> Cat(0.U(30.W), keyTracker.io.eventValid, keyTracker.io.lastPressed),
+    10.U -> keyTracker.io.numDown
+  ))
+
+  val is_excep = is_vga || is_htimer || is_keytracker
 
 
   io.address_vga := io.dcache_req.address - 0x10000000.U
@@ -61,12 +85,13 @@ class MemoryWrapper() extends Module {
   mem.io.dcache_start := io.dcache_start && !is_excep
   io.dcache_ready := mem.io.dcache_ready
   io.dcache_valid := mem.io.dcache_valid
-  io.dcache_data := mem.io.dcache_data 
+  io.dcache_data := mem.io.dcache_data
 
-  when(is_htimer){
-     io.dcache_data := hardwareTimer.io.micros
+  when(is_htimer) {
+    io.dcache_data := hardwareTimer.io.micros
+  }.elsewhen(is_keytracker) {
+    io.dcache_data := keytracker_rdata
   }
-
 
 
   mem.io.debug_req := io.debug_req

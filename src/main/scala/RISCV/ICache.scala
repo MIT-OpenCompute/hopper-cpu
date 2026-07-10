@@ -136,24 +136,20 @@ switch(state) {
                 }
             }
         }.otherwise { // miss
-            // FIX 1+2: sequence WB before MISS; only raise io.miss in MISS state
             when(status === "b11".U) { // valid + dirty → writeback first
                 state := CacheState.WRITEBACK
-            }.otherwise {             // invalid or clean → refill directly
+            }.otherwise {             
                 state := CacheState.MISS
             }
-            // io.miss NOT raised here anymore
         }
     }
 
-    // FIX 1: new WRITEBACK state — raise wb for one cycle then move to MISS
     is(CacheState.WRITEBACK) {
         io.wb := true.B
         state := CacheState.MISS
     }
 
     is(CacheState.MISS) {
-        // FIX 2: io.miss only raised here, never alongside io.wb
         when(!io.line_valid) {
             io.miss := true.B
         }.otherwise {

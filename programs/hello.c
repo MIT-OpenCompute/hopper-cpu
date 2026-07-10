@@ -1,6 +1,6 @@
 __attribute__((naked)) void _start(void) {
     __asm__ volatile(
-        "li sp, 0x4000000\n"  
+        "li sp, 0x8000000\n"  
         "call main\n"
         "loop: j loop\n"
     );
@@ -30,9 +30,24 @@ __attribute__((naked)) void _start(void) {
 
 
 
-
 int main() {
     volatile unsigned int* frame = (volatile unsigned int*)0x10000000;
+    volatile unsigned int* timer = (volatile unsigned int*)0x8000004;
+
+    // keytracker MMIO base (see earlier memory map):
+    //   keytracker[0] = keyDown[31:0]   (covers HID codes 0x00-0x1F, includes 'w'=0x1A, 's'=0x16)
+    //   keytracker[2] = keyDown[95:64]  (covers HID codes 0x40-0x5F, includes up=0x52, down=0x51)
+    volatile unsigned int* keytracker = (volatile unsigned int*)0x08000008;
+
+    // HID keycode bit positions within their respective words
+    const int W_BIT     = 0x1A;      // 'w', word 0, bit 26
+    const int S_BIT     = 0x16;      // 's', word 0, bit 22
+    const int UP_BIT    = 0x52 - 64; // up arrow,   word 2, bit 18
+    const int DOWN_BIT  = 0x51 - 64; // down arrow, word 2, bit 17
+
+    const int PADDLE_SPEED = 2;
+    const int PADDLE_MIN   = 22;  // keeps the +-20 draw box clear of the top border
+    const int PADDLE_MAX   = 217; // keeps it clear of the bottom border
 
     int paddY1 = 120;
     int paddY2 = 120;
@@ -41,7 +56,7 @@ int main() {
     int ballY = 120;
     int dX = 1;
     int dY = 1;
-    
+
     for (int i = 0; i < 320; i++) {
         frame[i] = 0xFF;
         frame[239 * 320 + i] = 0xFF;
@@ -50,7 +65,8 @@ int main() {
     }
 
     while (1) {
-        // draw_image(frame, 0, 0);
+        int ctime = *timer;
+
         for (int x = -2; x <= 2; x++) {
             for (int y = -2; y <= 2; y++) {
                 frame[320 * (ballY + y) + ballX + x] = 0x00;
@@ -96,6 +112,28 @@ int main() {
             dX = -1;
         }
 
+        // ---- paddle control: W/S move the left paddle, Up/Down move the right ----
+        unsigned int word0 = keytracker[0];
+        unsigned int word2 = keytracker[2];
+
+        if ((word0 >> W_BIT) & 1) {
+            paddY1 -= PADDLE_SPEED;
+        }
+        if ((word0 >> S_BIT) & 1) {
+            paddY1 += PADDLE_SPEED;
+        }
+        if ((word2 >> UP_BIT) & 1) {
+            paddY2 -= PADDLE_SPEED;
+        }
+        if ((word2 >> DOWN_BIT) & 1) {
+            paddY2 += PADDLE_SPEED;
+        }
+
+        if (paddY1 < PADDLE_MIN) paddY1 = PADDLE_MIN;
+        if (paddY1 > PADDLE_MAX) paddY1 = PADDLE_MAX;
+        if (paddY2 < PADDLE_MIN) paddY2 = PADDLE_MIN;
+        if (paddY2 > PADDLE_MAX) paddY2 = PADDLE_MAX;
+
         for (int x = -2; x <= 2; x++) {
             for (int y = -2; y <= 2; y++) {
                 frame[320 * (ballY + y) + ballX + x] = 0xFF;
@@ -114,7 +152,7 @@ int main() {
             }
         }
 
-        for (int i = 0; i < 8000; i++) {
+        while (*timer - ctime < 8000) {
             __asm__ volatile("nop");
         }
     }
