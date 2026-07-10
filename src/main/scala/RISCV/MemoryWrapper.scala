@@ -36,12 +36,19 @@ class MemoryWrapper() extends Module {
     val handshake_bypass = Output(Bool())
 
     val rxd = Input(Bool())
+    val txd = Output(Bool())
   })
 
 
   val mem = Module(new MemoryInterface())
   val hardwareTimer = Module(new HardwareTimer(100000000))
-  val keyTracker = Module(new UartKeyboardTracker(100000000, 115200)) 
+  val keyTracker = Module(new UartKeyboardTracker(100000000, 6000000))
+  val uartTx = Module(new UartTxFifo(100000000, 6000000)) 
+
+  io.txd := uartTx.io.out
+  uartTx.io.in.bits  := 0.U
+  uartTx.io.in.valid := false.B
+
   keyTracker.io.rxd := io.rxd
   mem.io.icache_req := io.icache_req
   mem.io.icache_start := io.icache_start
@@ -49,13 +56,32 @@ class MemoryWrapper() extends Module {
   io.icache_valid := mem.io.icache_valid
   io.icache_data := mem.io.icache_data
 
-
+  val KEYTRACKER_BASE = 0x08000008.U
   val is_vga     = io.dcache_req.address >= 0x10000000.U
   val is_htimer  = io.dcache_req.address === 0x8000004.U
+  val is_keytracker = io.dcache_req.address >= KEYTRACKER_BASE && io.dcache_req.address < (KEYTRACKER_BASE + 0x2C.U)
+  val is_uarttx = io.dcache_req.address === 0x08000034.U
+  val is_debug_char = io.dcache_req.address === 0x70000000.U
+  val is_debug_num = io.dcache_req.address === 0x70000008.U
+  val is_excep = is_vga || is_htimer || is_keytracker || is_uarttx || is_debug_char || is_debug_num
 
-  val KEYTRACKER_BASE = 0x08000008.U
-  val is_keytracker = io.dcache_req.address >= KEYTRACKER_BASE &&
-                      io.dcache_req.address < (KEYTRACKER_BASE + 0x2C.U)
+  when(is_debug_char && io.dcache_start) {
+      printf("%c", io.dcache_req.write_data);
+  }
+
+  when(is_debug_num && io.dcache_start) {
+      printf("%d", io.dcache_req.write_data);
+  }
+
+
+  mem.io.dcache_req := io.dcache_req
+  mem.io.dcache_start := io.dcache_start && !is_excep
+  io.dcache_ready := mem.io.dcache_ready
+  io.dcache_valid := mem.io.dcache_valid
+  io.dcache_data := mem.io.dcache_data
+
+
+
   val keytracker_word = (io.dcache_req.address - KEYTRACKER_BASE)(5, 2)
 
   val keytracker_rdata = MuxLookup(keytracker_word, 0.U(32.W))(Seq(
@@ -72,25 +98,27 @@ class MemoryWrapper() extends Module {
     10.U -> keyTracker.io.numDown
   ))
 
-  val is_excep = is_vga || is_htimer || is_keytracker
+
 
 
   io.address_vga := io.dcache_req.address - 0x10000000.U
   io.write_vga := is_vga && io.dcache_req.write && io.dcache_start
   io.write_value_vga := io.dcache_req.write_data
-
   io.handshake_bypass := is_excep
 
-  mem.io.dcache_req := io.dcache_req
-  mem.io.dcache_start := io.dcache_start && !is_excep
-  io.dcache_ready := mem.io.dcache_ready
-  io.dcache_valid := mem.io.dcache_valid
-  io.dcache_data := mem.io.dcache_data
+ 
 
   when(is_htimer) {
     io.dcache_data := hardwareTimer.io.micros
   }.elsewhen(is_keytracker) {
     io.dcache_data := keytracker_rdata
+  }
+
+
+  when(is_uarttx && uartTx.io.in.ready){
+    uartTx.io.in.bits := io.dcache_req.write_data(7,0)
+    uartTx.io.in.valid := true.B
+    
   }
 
 

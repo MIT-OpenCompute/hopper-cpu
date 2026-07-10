@@ -30,6 +30,7 @@ class Main() extends Module {
     val debug_pc = Output(UInt(32.W))
 
     val rxd = Input(Bool())
+    val txd = Output(Bool())
 
 
     })
@@ -65,6 +66,7 @@ class Main() extends Module {
     memory.io.mem_valid := io.mem_valid
 
     memory.io.rxd := io.rxd
+    io.txd := memory.io.txd
 
     val vga_controller = Module(new VGAController())
     vga_controller.io.address := memory.io.address_vga

@@ -13,41 +13,24 @@ __attribute__((naked)) void _start(void) {
 
 
 
-// volatile unsigned char buffer[320];
-
-// static void fill_buffer(){
-//    for (int i = 0; i < 320; i++) {
-//         buffer[i] = ( i>>2) ;
-//     }
-// }
-// static void draw_image(volatile unsigned int* frame, int ox, int oy) {
-//     for (int y = 0; y < IMG_H; y++) {
-//         for (int x = 0; x < 320; x++) {
-//             frame[(oy + y) * 320 + (ox + x)] = (char)buffer[x];
-//         }
-//     }
-// }
 
 
 
 int main() {
     volatile unsigned int* frame = (volatile unsigned int*)0x10000000;
     volatile unsigned int* timer = (volatile unsigned int*)0x8000004;
-
-    // keytracker MMIO base (see earlier memory map):
-    //   keytracker[0] = keyDown[31:0]   (covers HID codes 0x00-0x1F, includes 'w'=0x1A, 's'=0x16)
-    //   keytracker[2] = keyDown[95:64]  (covers HID codes 0x40-0x5F, includes up=0x52, down=0x51)
+    volatile unsigned char* uart_tx = (volatile unsigned char*)0x08000034;
+    
     volatile unsigned int* keytracker = (volatile unsigned int*)0x08000008;
 
-    // HID keycode bit positions within their respective words
-    const int W_BIT     = 0x1A;      // 'w', word 0, bit 26
-    const int S_BIT     = 0x16;      // 's', word 0, bit 22
-    const int UP_BIT    = 0x52 - 64; // up arrow,   word 2, bit 18
-    const int DOWN_BIT  = 0x51 - 64; // down arrow, word 2, bit 17
+    const int W_BIT     = 0x1A;     
+    const int S_BIT     = 0x16;      
+    const int UP_BIT    = 0x52 - 64;
+    const int DOWN_BIT  = 0x51 - 64;
 
     const int PADDLE_SPEED = 2;
-    const int PADDLE_MIN   = 22;  // keeps the +-20 draw box clear of the top border
-    const int PADDLE_MAX   = 217; // keeps it clear of the bottom border
+    const int PADDLE_MIN   = 22;  
+    const int PADDLE_MAX   = 217; 
 
     int paddY1 = 120;
     int paddY2 = 120;
@@ -151,7 +134,7 @@ int main() {
                 frame[320 * (paddY2 + y) + 299 + x] = 0xE0;
             }
         }
-
+        *uart_tx = 'a';
         while (*timer - ctime < 8000) {
             __asm__ volatile("nop");
         }
