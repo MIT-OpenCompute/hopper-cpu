@@ -37,13 +37,15 @@ class MemoryWrapper() extends Module {
 
     val rxd = Input(Bool())
     val txd = Output(Bool())
+
+    val latch_out = Output(UInt(8.W))
   })
 
 
   val mem = Module(new MemoryInterface())
   val hardwareTimer = Module(new HardwareTimer(100000000))
-  val keyTracker = Module(new UartKeyboardTracker(100000000, 6000000))
-  val uartTx = Module(new UartTxFifo(100000000, 6000000)) 
+  val keyTracker = Module(new UartKeyboardTracker(100000000, 1000000))
+  val uartTx = Module(new UartTxFifo(100000000, 1000000)) 
 
   io.txd := uartTx.io.out
   uartTx.io.in.bits  := 0.U
@@ -65,12 +67,19 @@ class MemoryWrapper() extends Module {
   val is_debug_num = io.dcache_req.address === 0x70000008.U
   val is_excep = is_vga || is_htimer || is_keytracker || is_uarttx || is_debug_char || is_debug_num
 
+  val latch_out = RegInit(0.U(16.W))
+  io.latch_out := latch_out
   when(is_debug_char && io.dcache_start) {
       printf("%c", io.dcache_req.write_data);
   }
 
   when(is_debug_num && io.dcache_start) {
       printf("0x%x", io.dcache_req.write_data);
+      when(io.dcache_req.write_data === 100.U){
+        latch_out := 320.U
+      }
+  }.elsewhen(latch_out >0.U){
+    latch_out:=latch_out -1.U
   }
 
 

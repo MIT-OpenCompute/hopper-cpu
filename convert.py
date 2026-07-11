@@ -22,9 +22,9 @@ output = sys.argv[1].rsplit(".", 1)[0] + ".hex"
 run_len = 0
 patched = 0
 for i in range(len(data)):
-    if data[i] == 0xFF:
+    if data[i] == 0xFE:
         run_len += 1
-        if run_len == 4:
+        if run_len == 32:
             data[i] = 0xFF
             patched += 1
             run_len = 0  # restart the count after breaking the run

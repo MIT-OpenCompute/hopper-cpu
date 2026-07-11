@@ -26,7 +26,7 @@ class DCache() extends Module {
         val line_valid = Input(Bool())
     })
 
-    val CACHE_SETS = 256
+    val CACHE_SETS = 64
     val LINE_WIDTH_WORDS = 4
     val LOG_CACHE_SETS = log2Up(CACHE_SETS)
     val LOG_LINE_WIDTH_WORDS = log2Up(LINE_WIDTH_WORDS)
@@ -61,7 +61,7 @@ class DCache() extends Module {
 
     // Addressing index inputs straight out to the asynchronous memory blocks
     val raw_index = getIndex(lookup_address)
-    val read_enable = io.start || state === CacheState.LOOKUP
+    val read_enable = io.start || state === CacheState.LOOKUP || state === CacheState.MISS
     
     val data_out = data_array.read(raw_index, read_enable)
     val meta_out = meta_array.read(raw_index, read_enable) 

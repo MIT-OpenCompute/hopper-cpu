@@ -21,7 +21,7 @@ import argparse
 parser = argparse.ArgumentParser(description="Load a RIsSC-V hex program onto FPGA over UART")
 parser.add_argument("hex_file",              help="Path to the .hex program file")
 parser.add_argument("--port",  default="COM3", help="Serial port (default: COM3)")
-parser.add_argument("--baud",  default=6000000, type=int, help="Baud rate (default: 115200)")
+parser.add_argument("--baud",  default=1000000, type=int, help="Baud rate (default: 115200)")
 parser.add_argument("--delay", default=0.00,  type=float, help="Delay between words in seconds (default: 0.01)")
 args = parser.parse_args()
 
@@ -40,9 +40,9 @@ try:
                 
                 # SAFETY CHECK: 0xFFFFFFFF triggers the End-Of-File sequence in hardware!
                 # We alter it slightly to prevent the FPGA from prematurely stopping the load.
-                if word == 0xFFFFFFFF:
-                    print(f"Warning (Line {lineno}): 0xFFFFFFFF found. Changing to 0xFFFFFFFE to prevent premature EOF.")
-                    word = 0xFFFFFFFE
+                # if word == 0xFFFFFFFF:
+                #     print(f"Warning (Line {lineno}): 0xFFFFFFFF found. Changing to 0xFFFFFFFE to prevent premature EOF.")
+                #     word = 0xFFFFFFFE
                     
                 words.append(word)
             except ValueError:
@@ -91,7 +91,7 @@ try:
 
         # Send end sequence: 4x 0xFF (plus a couple extra for safety buffer)
         print("Sending end sequence (0xFF 0xFF 0xFF 0xFF) to boot CPU...")
-        ser.write(bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]))
+        ser.write(bytes([0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE]*8))
         time.sleep(0.1)
 
         print("Done! CPU should now be running your program.")

@@ -189,7 +189,7 @@ class Execute() extends Module {
 
           // Store
           is("b0100011".U) {
-            // printf("STORING STORING %x addr: %x inst: %d\n",inst.rs2_val, addr, inst.pc)
+            // printf("STORING STORING %x addr: %x inst: %d, bypass : %b\n",inst.rs2_val, addr, inst.pc, io.handshake_bypass)
             io.dcache_req.address := addr
        
             io.dcache_req.write_data := inst.rs2_val
@@ -233,9 +233,9 @@ class Execute() extends Module {
       }.elsewhen(io.dcache_valid || io.handshake_bypass) {
         bundle.rd_val := io.dcache_data
         state := ExecState.IDLE
-        when(io.dcache_data.asUInt === 100.U){
+        // when(io.dcache_data.asUInt === 100.U){
         // printf("LOADED LOADED %x\n",io.dcache_data)
-        }
+        // }
         io.memory_stall := false.B
         io.next_instruction.valid := true.B
         io.next_instruction.bits := bundle

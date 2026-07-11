@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
     std::map<uint32_t, std::vector<uint8_t>> mock_ddr3;
 
-    std::ifstream file("/home/liamh/RISC-V/programs/doom.hex");
+    std::ifstream file("/home/arya/Documents/Github/RISC-V/programs/doom.hex");
     if (!file.is_open()) {
         printf("Error: Could not open hello.hex file!\n");
         return -1;

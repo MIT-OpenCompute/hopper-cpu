@@ -11,7 +11,7 @@ class UartTxFifo(val clockFreq: Int, val baudRate: Int) extends Module {
     val out = Output(Bool())
   })
 
-  val fifo = Queue(io.in, entries = 256, flow = true)
+  val fifo = Queue(io.in, entries = 2048, flow = true)
   val uartTx = Module(new UartTx(clockFreq, baudRate)) 
   io.out := uartTx.io.txd
 

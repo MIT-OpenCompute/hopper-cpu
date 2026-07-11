@@ -1,195 +1,337 @@
+#include <stddef.h>
+
 __attribute__((naked)) void _start(void) {
     __asm__ volatile(
-        "li sp, 0x7000000\n"  
+        "li sp, 0x7000000\n"
         "call main\n"
         "loop: j loop\n"
     );
 }
 
-// Low-level debugging outputs provided
+void debug_num(unsigned int value) {
+    *((volatile unsigned int*)0x70000008) = value;
+}
+volatile unsigned char* uart_tx = (volatile unsigned char*)0x08000034;
+
 void debug_log(char* character) {
-    while(*character != '\0') {
+    while (*character != '\0') {
+        *uart_tx = *(character);
         *((volatile unsigned int*)0x70000000) = *(character);
         character++;
     }
 }
 
-void debug_num(unsigned int value) {
-    *((volatile unsigned int*)0x70000008) = value;
+#define TEST_BASE       ((volatile unsigned int *)0x05000000)
+#define NUM_WORDS       (1u << 21)      /* 2M words = 8MB region */
+#define MASK            (NUM_WORDS - 1)
+#define STRIDE          0x9E3779B1u     /* odd - guarantees full period */
+#define PATTERN_XOR     0xA5A5A5A5u
+
+/* how many address bits to exercise in the address-bus test */
+#define ADDR_BUS_BITS   21              /* covers the 8MB test region */
+
+#define IMG_W 320
+#define IMG_H 240
+#define FRAME_BASE      ((volatile unsigned int *)0x10000000)
+
+#define COLOR_GREEN     0x1C   /* RGB332: 000 111 00 */
+#define COLOR_RED       0xE0   /* RGB332: 111 000 00 */
+
+/* ---- status codes reported via debug_num ----
+ * 0x10-0x1F : data bus test
+ * 0x20-0x2F : address bus test
+ * 0x30-0x3F : moving inversions test
+ * 0x80-0x9F : legacy random-stride pass (kept from original)
+ * 0xC0      : overall PASS
+ * 0xC1      : overall FAIL
+ */
+
+static void report_mismatch(unsigned int addr_or_idx, unsigned int expected, unsigned int actual) {
+    debug_log("  bad addr/idx follows\n");
+    debug_num(addr_or_idx);
+    debug_log("  expected follows\n");
+    debug_num(expected);
+    debug_log("  actual follows\n");
+    debug_num(actual);
 }
 
-// Global scratchpad memory aligned dynamically to stress memory hierarchy
-// Used to verify byte, half-word, and word store/load patterns
-volatile unsigned int memory_scratchpad[16] __attribute__((aligned(4)));
+/* ------------------------------------------------------------------ */
+/* Stage 1: Data bus test (walking ones / walking zeros)               */
+/* Verifies every data line can independently hold 0 and 1 at a single */
+/* fixed address. Catches stuck-at and adjacent-line shorts on D[31:0].*/
+/* ------------------------------------------------------------------ */
+static unsigned int test_data_bus(void) {
+    debug_log("memtest: data bus walking-ones/zeros\n");
+    debug_num(0x10);
 
-// A rolling checksum that accumulates all execution states. 
-// If even a single instruction behaves incorrectly, the final checksum will collapse.
-volatile unsigned int rolling_checksum = 0x12345678;
+    volatile unsigned int *addr = TEST_BASE;
+    unsigned int errors = 0;
 
-void accumulate_checksum(unsigned int value) {
-    // Standard fast mixing step (Galois-style accumulator)
-    rolling_checksum = (rolling_checksum >> 1) | (rolling_checksum << 31);
-    rolling_checksum ^= value;
+    for (int bit = 0; bit < 32; bit++) {
+        unsigned int pattern = 1u << bit;
+
+        /* walking ones */
+        *addr = pattern;
+        unsigned int actual = *addr;
+        if (actual != pattern) {
+            if (errors == 0) {
+                debug_log("memtest: data bus FAIL (walking one)\n");
+                report_mismatch(bit, pattern, actual);
+            }
+            errors++;
+        }
+
+        /* walking zeros (inverse pattern) */
+        unsigned int inv_pattern = ~pattern;
+        *addr = inv_pattern;
+        actual = *addr;
+        if (actual != inv_pattern) {
+            if (errors == 0) {
+                debug_log("memtest: data bus FAIL (walking zero)\n");
+                report_mismatch(bit, inv_pattern, actual);
+            }
+            errors++;
+        }
+    }
+
+    debug_num(0x1E);
+    if (errors == 0) {
+        debug_log("memtest: data bus OK\n");
+    } else {
+        debug_log("memtest: data bus errors follow\n");
+        debug_num(errors);
+    }
+    return errors;
+}
+
+/* ------------------------------------------------------------------ */
+/* Stage 2: Address bus test                                           */
+/* Writes a unique value at each power-of-two offset, then checks that */
+/* no other power-of-two offset (or the base) got corrupted. Catches   */
+/* stuck-at, shorted, or aliased address lines.                        */
+/* ------------------------------------------------------------------ */
+static unsigned int test_address_bus(void) {
+    debug_log("memtest: address bus test\n");
+    debug_num(0x20);
+
+    unsigned int errors = 0;
+    unsigned int base_pattern = 0xFFFFFFFFu;
+
+    /* write a sentinel at the base address, then a unique pattern at */
+    /* every power-of-two word offset */
+    TEST_BASE[0] = base_pattern;
+    for (int bit = 0; bit < ADDR_BUS_BITS; bit++) {
+        TEST_BASE[1u << bit] = (0xA5A50000u | bit);
+    }
+
+    /* verify base address wasn't clobbered */
+    unsigned int actual = TEST_BASE[0];
+    if (actual != base_pattern) {
+        if (errors == 0) {
+            debug_log("memtest: address bus FAIL (base addr clobbered)\n");
+            report_mismatch(0, base_pattern, actual);
+        }
+        errors++;
+    }
+
+    /* verify each power-of-two offset still holds its unique pattern */
+    for (int bit = 0; bit < ADDR_BUS_BITS; bit++) {
+        unsigned int expected = (0xA5A50000u | bit);
+        actual = TEST_BASE[1u << bit];
+        if (actual != expected) {
+            if (errors == 0) {
+                debug_log("memtest: address bus FAIL (offset mismatch)\n");
+                report_mismatch(1u << bit, expected, actual);
+            }
+            errors++;
+        }
+    }
+
+    debug_num(0x2E);
+    if (errors == 0) {
+        debug_log("memtest: address bus OK\n");
+    } else {
+        debug_log("memtest: address bus errors follow\n");
+        debug_num(errors);
+    }
+    return errors;
+}
+
+/* ------------------------------------------------------------------ */
+/* Stage 3: Moving inversions test                                     */
+/* For each fixed pattern: fill the whole region, then verify it, then */
+/* move to the next (usually inverted) pattern. Good at catching       */
+/* pattern-sensitive faults and coupling between cells.                */
+/* ------------------------------------------------------------------ */
+static unsigned int run_fixed_pattern_pass(unsigned int pattern) {
+    for (unsigned int i = 0; i < NUM_WORDS; i++) {
+        TEST_BASE[i] = pattern;
+    }
+
+    unsigned int errors = 0;
+    for (unsigned int i = 0; i < NUM_WORDS; i++) {
+        unsigned int actual = TEST_BASE[i];
+        if (actual != pattern) {
+            if (errors == 0) {
+                report_mismatch(i, pattern, actual);
+            }
+            errors++;
+        }
+    }
+    return errors;
+}
+
+static unsigned int test_moving_inversions(void) {
+    debug_log("memtest: moving inversions pass\n");
+    debug_num(0x30);
+
+    static const unsigned int patterns[] = {
+        0x00000000u,
+        0xFFFFFFFFu,
+        0xAAAAAAAAu,
+        0x55555555u,
+    };
+    const int num_patterns = (int)(sizeof(patterns) / sizeof(patterns[0]));
+
+    unsigned int total_errors = 0;
+    for (int p = 0; p < num_patterns; p++) {
+        debug_num(0x31 + p);
+        unsigned int errors = run_fixed_pattern_pass(patterns[p]);
+        if (errors != 0) {
+            debug_log("memtest: moving inversions FAIL on pattern\n");
+            debug_num(patterns[p]);
+            debug_log("memtest: pattern error count follows\n");
+            debug_num(errors);
+        }
+        total_errors += errors;
+    }
+
+    debug_num(0x3E);
+    if (total_errors == 0) {
+        debug_log("memtest: moving inversions OK\n");
+    } else {
+        debug_log("memtest: moving inversions total errors follow\n");
+        debug_num(total_errors);
+    }
+    return total_errors;
+}
+
+/* ------------------------------------------------------------------ */
+/* Stage 4: Pseudo-random stride/XOR pass (original test, kept as a    */
+/* final randomized sweep - good at catching things fixed patterns     */
+/* miss because addresses are visited in a scrambled, full-period      */
+/* order rather than sequentially).                                    */
+/* ------------------------------------------------------------------ */
+static unsigned int test_random_stride(void) {
+    debug_log("memtest: starting write pass\n");
+    debug_num(0x80);
+
+    unsigned int idx = 0;
+    for (unsigned int i = 0; i < NUM_WORDS; i++) {
+        idx = (idx + STRIDE) & MASK;
+        TEST_BASE[idx] = i ^ PATTERN_XOR;
+        if ((i & 0xFFFFF) == 0 && i != 0) {
+            debug_num(0x80 + (i >> 20));   /* progress every ~1M words */
+        }
+    }
+    debug_log("memtest: write pass done\n");
+    debug_num(0x8E);
+
+    debug_log("memtest: starting verify pass\n");
+    debug_num(0x90);
+
+    unsigned int errors = 0;
+    unsigned int first_bad_idx = 0xFFFFFFFF;
+    unsigned int first_bad_expected = 0;
+    unsigned int first_bad_actual = 0;
+
+    idx = 0;
+    for (unsigned int i = 0; i < NUM_WORDS; i++) {
+        idx = (idx + STRIDE) & MASK;
+        unsigned int expected = i ^ PATTERN_XOR;
+        unsigned int actual = TEST_BASE[idx];
+        if (actual != expected) {
+            if (errors == 0) {
+                first_bad_idx = idx;
+                first_bad_expected = expected;
+                first_bad_actual = actual;
+            }
+            errors++;
+        }
+        if ((i & 0xFFFFF) == 0 && i != 0) {
+            debug_num(0x90 + (i >> 20));
+        }
+    }
+
+    debug_log("memtest: verify pass done\n");
+    debug_num(0x9E);
+
+    debug_log("memtest: error count follows\n");
+    debug_num(errors);
+
+    if (errors != 0) {
+        debug_log("memtest: FIRST bad idx follows\n");
+        debug_num(first_bad_idx);
+        debug_log("memtest: FIRST expected value follows\n");
+        debug_num(first_bad_expected);
+        debug_log("memtest: FIRST actual value follows\n");
+        debug_num(first_bad_actual);
+    }
+
+    debug_log("memtest: random stride pass complete\n");
+    debug_num(0x9F);
+
+    return errors;
+}
+
+/* ------------------------------------------------------------------ */
+/* Top level: run every stage, stop early on first failure so you get  */
+/* a clean signal about which fault class you're dealing with.         */
+/* ------------------------------------------------------------------ */
+unsigned int memtest(void) {
+    unsigned int errors = 0;
+
+    errors = test_data_bus();
+    if (errors != 0) goto done;
+
+    errors = test_address_bus();
+    if (errors != 0) goto done;
+
+    errors = test_moving_inversions();
+    if (errors != 0) goto done;
+
+    errors = test_random_stride();
+
+done:
+    if (errors == 0) {
+        debug_log("MEMTEST PASSED\n");
+        debug_num(0xC0);
+    } else {
+        debug_log("MEMTEST FAILED\n");
+        debug_num(0xC1);
+    }
+
+    debug_log("memtest: complete\n");
+    debug_num(0x9F);
+
+    return errors;
+}
+
+static void paint_frame(unsigned int color) {
+    volatile unsigned int* frame = FRAME_BASE;
+    for (int i = 0; i < IMG_W * IMG_H; i++) {
+        frame[i] = color;
+    }
 }
 
 int main() {
-    debug_log("[HARDWARE VERIFICATION] Starting comprehensive RV32I core strain test...\n");
+    unsigned int errors = memtest();
 
-    // Extreme mathematical bounds for testing signed/unsigned comparisons and overflows
-    int signed_min = 0x80000000;
-    int signed_max = 0x7FFFFFFF;
-    unsigned int unsigned_max = 0xFFFFFFFF;
-    int negative_one = -1;
-
-    // =========================================================================
-    // SECTION 1: SHIFT & ARITHMETIC PIPELINE HAZARDS (SLL, SRL, SRA, ADD, SUB)
-    // =========================================================================
-    debug_log("Executing Phase 1: ALU Hazards & Shift Edge Cases...\n");
-    
-    for (int shift_amt = 0; shift_amt < 32; shift_amt++) {
-        // Test SRA (Shift Right Arithmetic) maintains the sign bit perfectly
-        int sra_res = signed_min >> shift_amt;
-        // Test SRL (Shift Right Logical) inserts zeros
-        unsigned int srl_res = unsigned_max >> shift_amt;
-        // Test SLL (Shift Left Logical)
-        unsigned int sll_res = 1u << shift_amt;
-
-        accumulate_checksum(sra_res);
-        accumulate_checksum(srl_res);
-        accumulate_checksum(sll_res);
-
-        // Intentionally create a dense RAW (Read-After-Write) hazard chain
-        // This tests whether your CPU pipeline's operand forwarding logic handles back-to-back dependency
-        int temp1, temp2, temp3;
-        __asm__ volatile (
-            "add %0, %3, %4\n\t"  // Interlocking dependencies
-            "sub %1, %0, %5\n\t"  // Uses temp1 immediately
-            "sll %2, %1, %6\n\t"  // Uses temp2 immediately
-            : "=&r"(temp1), "=&r"(temp2), "=&r"(temp3)
-            : "r"(sra_res), "r"(srl_res), "r"(negative_one), "r"(shift_amt & 0x1F)
-        );
-        accumulate_checksum(temp3);
-    }
-
-    // // =========================================================================
-    // // SECTION 2: BRANCH CONDITION MATRIX (BEQ, BNE, BLT, BGE, BLTU, BGEU)
-    // // =========================================================================
-    // debug_log("Executing Phase 2: Dynamic Branch Comparator Matrix...\n");
-    
-    // // Testing Signed vs Unsigned Branch Corner Cases
-    // // Under signed math, 0x80000000 < 0x7FFFFFFF. Under unsigned, 0x80000000 > 0x7FFFFFFF.
-    // // A faulty ALU status flag generation (Zero, Carry, Negative, Overflow) will trip here.
-    
-    // // 1. BLT / BGE Signed Checks
-    // if (signed_min < signed_max)  accumulate_checksum(0xA1);
-    // else                          accumulate_checksum(0x00);
-
-    // if (negative_one < 0)         accumulate_checksum(0xA2);
-    // else                          accumulate_checksum(0x00);
-
-    // if (signed_max > negative_one) accumulate_checksum(0xA3);
-    // else                          accumulate_checksum(0x00);
-
-    // // 2. BLTU / BGEU Unsigned Checks
-    // if ((unsigned int)signed_min > (unsigned int)signed_max) accumulate_checksum(0xB1);
-    // else                                                      accumulate_checksum(0x00);
-
-    // if ((unsigned int)negative_one > 0u)                      accumulate_checksum(0xB2);
-    // else                                                      accumulate_checksum(0x00);
-
-    // // 3. Complex Branching Chain with Interleaved Modulo to force branch predictor saturation
-    // for (int b = -5; b <= 5; b++) {
-    //     if (b == 0) {
-    //         accumulate_checksum(0xCC);
-    //     } volatile if (b > 0) {
-    //         if (b % 2 == 0) accumulate_checksum(b * 10);
-    //         else            accumulate_checksum(b * 20);
-    //     } else {
-    //         if (b % 2 == 0) accumulate_checksum(b * 30);
-    //         else            accumulate_checksum(b * 40);
-    //     }
-    // }
-
-    // // =========================================================================
-    // // SECTION 3: MEMORY SUB-SYSTEM BOUNDARY VERIFICATION (LB, LH, LW, LBU, LHU, SB, SH, SW)
-    // // =========================================================================
-    // debug_log("Executing Phase 3: Byte and Half-word Sign Extension Memory Sweep...\n");
-
-    // // Initialize scratchpad with known data pattern
-    // memory_scratchpad[0] = 0xDEADBEEF;
-    // memory_scratchpad[1] = 0x00000000;
-    // memory_scratchpad[2] = 0xFFFFFFFF;
-
-    // // Pointer-aliasing to byte level
-    // volatile unsigned char* byte_ptr = (volatile unsigned char*)memory_scratchpad;
-    // volatile unsigned short* half_ptr = (volatile unsigned short*)memory_scratchpad;
-
-    // // Test Byte Stores and Sign-extension Loads
-    // byte_ptr[4] = 0x80; // Sets byte 4 (which is index 1 offset 0) to a negative signed value
-    // byte_ptr[5] = 0x7F; // Positive edge boundary
-
-    // // LB should sign-extend 0x80 into 0xFFFFFF80
-    // int lb_sign = (int)((volatile char*)memory_scratchpad)[4]; 
-    // accumulate_checksum(lb_sign);
-
-    // // LBU should zero-extend 0x80 into 0x00000080
-    // unsigned int lbu_zero = byte_ptr[4];
-    // accumulate_checksum(lbu_zero);
-
-    // // Test Half-Word Stores and Loads
-    // half_ptr[4] = 0xFA12; // Sets halfword index 4 (offset 8 bytes)
-    // int lh_sign = (int)((volatile short*)memory_scratchpad)[4];
-    // accumulate_checksum(lh_sign);
-
-    // unsigned int lhu_zero = half_ptr[4];
-    // accumulate_checksum(lhu_zero);
-
-    // // Verify raw memory dump through word-read verification
-    // accumulate_checksum(memory_scratchpad[1]);
-    // accumulate_checksum(memory_scratchpad[2]);
-
-    // // =========================================================================
-    // // SECTION 4: IMMEDIATE AND UPPER ADDRESSING LOGIC (LUI, AUIPC)
-    // // =========================================================================
-    // debug_log("Executing Phase 4: Upper Immediate & Program Counter Tracking...\n");
-
-    // unsigned int auipc_result1 = 0;
-    // unsigned int auipc_result2 = 0;
-
-    // // Directly invoke AUIPC via assembly to isolate it from standard compiler optimizations
-    // __asm__ volatile (
-    //     "auipc %0, 0x1000\n\t"  // Adds 0x1000000 to the current PC
-    //     "auipc %1, 0x0\n\t"     // Captures current base PC address
-    //     : "=r"(auipc_result1), "=r"(auipc_result2)
-    // );
-
-    // // Ensure the difference matches exactly 0x1000000 minus the distance of the instruction itself
-    // unsigned int pc_delta = auipc_result1 - auipc_result2;
-    // accumulate_checksum(pc_delta);
-
-    // // =========================================================================
-    // // SECTION 5: FINAL ANALYSIS & VERIFICATION VERDICT
-    // // =========================================================================
-    debug_log("\n==================================================\n");
-    debug_log("STRESS TEST CALCULATION FINISHED.\n");
-    debug_log("Result Checksum: ");
-    debug_num(rolling_checksum);
-    debug_log("\n");
-
-    // EXPECTED CHECKSUM VALIDATION:
-    // Every RV32I architecture executing this code identically must land on this mathematically closed value:
-    // Expected value calculated structurally across full sequence coverage: 0x2A9A8C13
-    unsigned int reference_target = 0x2A9A8C13; 
-
-    if (rolling_checksum == reference_target) {
-        debug_log("[PASS] CPU core executed all instructions perfectly. No hardware bugs detected!\n");
+    if (errors == 0) {
+        paint_frame(COLOR_GREEN);
     } else {
-        debug_log("[FAIL ALERT] Hardware divergence found! Calculated checksum does not match expected baseline.\n");
-        debug_log("Expected Target Baseline: ");
-        debug_num(reference_target);
-        debug_log("\nCheck for bypass hazards, sign extension flaws, or branch condition errors.\n");
+        paint_frame(COLOR_RED);
     }
-    debug_log("==================================================\n");
 
     return 0;
 }

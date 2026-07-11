@@ -104,7 +104,6 @@ class MemoryInterface() extends Module {
   arbiter.io.mem_resp      := io.mem_resp
   arbiter.io.mem_valid     := io.mem_valid // Let the arbiter handle gating internally
 
-  // Direct connection from arbiter demuxed lines to caches
   icache.io.line_result := io.mem_resp
   icache.io.line_valid  := arbiter.io.resp_to_icache
   

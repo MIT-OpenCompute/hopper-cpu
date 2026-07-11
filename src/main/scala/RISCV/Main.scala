@@ -37,6 +37,7 @@ class Main() extends Module {
 
     val memory = Module(new MemoryWrapper())
     val core = Module(new Core())
+    core.io.latch_in := memory.io.latch_out > 0.U
     io.debug_reg := core.io.debug_reg
     io.debug_ready := memory.io.debug_ready
     io.debug_pc := core.io.debug_pc
