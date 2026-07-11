@@ -4,79 +4,62 @@ import chisel3._
 import _root_.circt.stage.ChiselStage
 import scala.math._
 
-
-
 class Core() extends Module {
     val io = IO(new Bundle {
-		val execute = Input(Bool())
+        val execute = Input(Bool())
 
-    val icache_req = Output(new MemReq)
-    val icache_start = Output(Bool())
-    val icache_ready = Input(Bool())
-    val icache_valid = Input(Bool())
-    val icache_data = Input(UInt(32.W))
+        val icache_req = Output(new MemReq)
+        val icache_start = Output(Bool())
+        val icache_ready = Input(Bool())
+        val icache_valid = Input(Bool())
+        val icache_data = Input(UInt(32.W))
 
-    val dcache_req = Output(new MemReq)
-    val dcache_start = Output(Bool())
-    val dcache_ready = Input(Bool())
-    val dcache_valid = Input(Bool())
-    val dcache_data = Input(UInt(32.W))
-    val handshake_bypass = Input(Bool()) 
+        val dcache_req = Output(new MemReq)
+        val dcache_start = Output(Bool())
+        val dcache_ready = Input(Bool())
+        val dcache_valid = Input(Bool())
+        val dcache_data = Input(UInt(32.W))
+        val handshake_bypass = Input(Bool())
 
-    val debug_reg = Output(UInt(32.W))
-    val debug_pc = Output(UInt(32.W))
+        val debug_reg = Output(UInt(32.W))
+        val debug_pc = Output(UInt(32.W))
 
-
-    
     })
-
 
     val registers = Module(new Registers())
     registers.io.read_address_a := 0.U(5.W)
     registers.io.read_address_b := 0.U(5.W)
     io.debug_reg := registers.io.debug_1
     val fetch = Module(new Fetch())
-        io.debug_pc := fetch.io.f2d.bits.pc
+    io.debug_pc := fetch.io.f2d.bits.pc
 
     val decode = Module(new Decode())
     val read = Module(new Read())
     val execute = Module(new Execute())
     val writeback = Module(new Writeback())
 
-
     val raw_stall = read.io.raw_hazard_stall
     val memory_stall = execute.io.memory_stall
     val jump_flush = execute.io.jump_flush
 
-
-
     val fetch_stall = raw_stall || memory_stall || !io.execute
-val fetch_stall_prev = RegNext(fetch_stall, true.B)
-val fetch_op = Mux(jump_flush, FetchOp.RD,
-               Mux(fetch_stall, FetchOp.ST,
-               Mux(false.B, FetchOp.ST, FetchOp.DQ)))  // hold one extra cycle on release
+    val fetch_stall_prev = RegNext(fetch_stall, true.B)
+    val fetch_op =
+        Mux(jump_flush, FetchOp.RD, Mux(fetch_stall, FetchOp.ST, Mux(false.B, FetchOp.ST, FetchOp.DQ))) // hold one extra cycle on release
 
     fetch.io.f_req.fetch_op := fetch_op
     fetch.io.f_req.redirect_addr := execute.io.pc_redirect.bits
     fetch.io.execute := io.execute
-    
+
     io.icache_req := fetch.io.icache_req
     io.icache_start := fetch.io.icache_start
     fetch.io.icache_ready := io.icache_ready
     fetch.io.icache_valid := io.icache_valid
     fetch.io.icache_data := io.icache_data
 
-
-
-    
-
     decode.io.f2d := fetch.io.f2d
     decode.io.flush := jump_flush
     decode.io.stall := fetch_stall
-
-
-    
-
 
     read.io.instruction := decode.io.decoded
     registers.io.read_address_a := read.io.register_read_a
@@ -87,24 +70,15 @@ val fetch_op = Mux(jump_flush, FetchOp.RD,
     read.io.flush := jump_flush
     read.io.stall := memory_stall
 
-
     val rum = (execute.io.next_instruction.valid.asUInt << execute.io.next_instruction.bits.rd) |
-          (read.io.next_instruction.valid.asUInt << read.io.next_instruction.bits.rd) |
-          (writeback.io.write_enable.asUInt << writeback.io.write_address)
+        (read.io.next_instruction.valid.asUInt << read.io.next_instruction.bits.rd) |
+        (writeback.io.write_enable.asUInt << writeback.io.write_address)
     read.io.rum := rum
 
-    
-
-
-
-
-    
-
     execute.io.instruction := read.io.next_instruction
-    
+
     execute.io.flush := RegNext(jump_flush)
     execute.io.stall := false.B
-    
 
     io.dcache_req := execute.io.dcache_req
     io.dcache_start := execute.io.dcache_start
@@ -112,11 +86,6 @@ val fetch_op = Mux(jump_flush, FetchOp.RD,
     execute.io.dcache_valid := io.dcache_valid
     execute.io.dcache_data := io.dcache_data
     execute.io.handshake_bypass := io.handshake_bypass
-
-
-
-
-    
 
     writeback.io.instruction := execute.io.next_instruction
 
@@ -126,9 +95,6 @@ val fetch_op = Mux(jump_flush, FetchOp.RD,
 
     io.icache_start := fetch.io.icache_start
 
-
-
-	
 // when(io.execute) {
 // printf("\n\n\n=== Fetch ===\n")
 // printf("fetch op %d\n",fetch_op.asUInt)
@@ -198,7 +164,7 @@ val fetch_op = Mux(jump_flush, FetchOp.RD,
 // printf("write_en:  %b\n", writeback.io.write_enable)
 // printf("write_addr:%d\n", writeback.io.write_address)
 // printf("write_val: %x\n", writeback.io.write_val)
-	
+
 // 		printf("=== Dump ===\n");
 // 		printf("01: %x\n", registers.io.debug_1);
 // 		printf("02: %x\n", registers.io.debug_2);

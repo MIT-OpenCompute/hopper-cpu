@@ -111,7 +111,7 @@ class ALU(val width: Int = 32) extends Module {
         is("b101".U) {
             when(io.func7(5)) {
                 i_alu := (io.a.asSInt >> io.b(4, 0)).asUInt
-                                printf("SRAI SRA out: %x  a %x b %d \n", i_alu,io.a, io.b(4, 0))
+                                // printf("SRAI SRA out: %x  a %x b %d \n", i_alu,io.a, io.b(4, 0))
 
             }.otherwise {
                 i_alu := io.a >> io.b(4, 0)

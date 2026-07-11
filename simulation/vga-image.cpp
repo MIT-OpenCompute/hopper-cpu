@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
     std::map<uint32_t, std::vector<uint8_t>> mock_ddr3;
 
-    std::ifstream file("/home/arya/Documents/Github/RISC-V/programs/hello.hex");
+    std::ifstream file("/home/liamh/RISC-V/programs/doom.hex");
     if (!file.is_open()) {
         printf("Error: Could not open hello.hex file!\n");
         return -1;
@@ -257,9 +257,9 @@ int main(int argc, char** argv) {
         fprintf(f, "P6\n%d %d\n255\n", H_VISIBLE, V_VISIBLE);
         fwrite(pixels.data(), 1, pixels.size(), f);
         fclose(f);
-        // if (system("ffmpeg -i frame.ppm frame.png -y") != 0) {
-            //  printf("Frame dumped out to local disk as frame.ppm safely.\n");
-        // }
+        if (system("ffmpeg -i frame.ppm frame.png -y > /dev/null 2>&1") != 0) {
+             printf("Frame dumped out to local disk as frame.ppm safely.\n");
+        }
     }
 
     dut->final();
