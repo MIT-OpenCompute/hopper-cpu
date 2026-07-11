@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
 
     bool write_in_progress = false;
     int  write_latency_counter = 0;
-
+    
     while (1) {
         pixelIdx = 0;
 
@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
             dut->eval();
 
             if (prev_vsync && !vsync) {
-                printf("vsync mid-frame at cycle %d — counter mismatch!\n", cycle);
+                // printf("vsync mid-frame at cycle %d — counter mismatch!\n", cycle);
             }
             prev_vsync = vsync;
 
@@ -250,16 +250,16 @@ int main(int argc, char** argv) {
             }
         }
 
-        printf("Captured %d pixels (expected %d)\n", pixelIdx, H_VISIBLE * V_VISIBLE);
+        // printf("Captured %d pixels (expected %d)\n", pixelIdx, H_VISIBLE * V_VISIBLE);
 
         FILE* f = fopen("frame.ppm", "wb");
         if (!f) { perror("fopen"); return 1; }
         fprintf(f, "P6\n%d %d\n255\n", H_VISIBLE, V_VISIBLE);
         fwrite(pixels.data(), 1, pixels.size(), f);
         fclose(f);
-        if (system("ffmpeg -i frame.ppm frame.png -y") != 0) {
-             printf("Frame dumped out to local disk as frame.ppm safely.\n");
-        }
+        // if (system("ffmpeg -i frame.ppm frame.png -y") != 0) {
+            //  printf("Frame dumped out to local disk as frame.ppm safely.\n");
+        // }
     }
 
     dut->final();

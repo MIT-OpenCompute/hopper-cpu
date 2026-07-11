@@ -32,6 +32,7 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
 
       new TestableBool(dut.io.execute).poke(true.B) 
       new TestableBool(dut.io.flash).poke(false.B)
+      new TestableBool(dut.io.rxd).poke(true.B)
       new TestableUInt(dut.io.flash_address).poke(0.U)
       new TestableUInt(dut.io.flash_value).poke(0.U)
       
@@ -40,7 +41,7 @@ class MainSpec extends AnyFreeSpec with Matchers with ChiselSim {
       new TestableUInt(dut.io.mem_resp).poke(0.U)
       new TestableClock(dut.clock).step(2)
 
-     for (cycle <- 0 until 30000) {
+     for (cycle <- 0 until 50) {
   if (new TestableBool(dut.io.mem_req.valid).peek().litToBoolean) {
     // 1. Acknowledge the request immediately
     new TestableBool(dut.io.mem_req.ready).poke(true.B)

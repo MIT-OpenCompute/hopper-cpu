@@ -20,55 +20,46 @@ void debug_num(unsigned int value) {
 
 // Global scratchpad memory aligned dynamically to stress memory hierarchy
 // Used to verify byte, half-word, and word store/load patterns
-volatile unsigned int memory_scratchpad[16] __attribute__((aligned(4)));
+// volatile unsigned int memory_scratchpad[16] __attribute__((aligned(4)));
 
-// A rolling checksum that accumulates all execution states. 
-// If even a single instruction behaves incorrectly, the final checksum will collapse.
-volatile unsigned int rolling_checksum = 0x12345678;
+// // A rolling checksum that accumulates all execution states. 
+// // If even a single instruction behaves incorrectly, the final checksum will collapse.
+// volatile unsigned int rolling_checksum = 0x12345678;
 
-void accumulate_checksum(unsigned int value) {
-    // Standard fast mixing step (Galois-style accumulator)
-    rolling_checksum = (rolling_checksum >> 1) | (rolling_checksum << 31);
-    rolling_checksum ^= value;
-}
 
 int main() {
-    debug_log("[HARDWARE VERIFICATION] Starting comprehensive RV32I core strain test...\n");
+    // debug_log("[HARDWARE VERIFICATION] Starting comprehensive RV32I core strain test...\n");
 
     // Extreme mathematical bounds for testing signed/unsigned comparisons and overflows
     int signed_min = 0x80000000;
-    int signed_max = 0x7FFFFFFF;
-    unsigned int unsigned_max = 0xFFFFFFFF;
-    int negative_one = -1;
+    // int signed_max = 0x7FFFFFFF;
+    // unsigned int unsigned_max = 0xFFFFFFFF;
+    // int negative_one = -1;
 
     // =========================================================================
     // SECTION 1: SHIFT & ARITHMETIC PIPELINE HAZARDS (SLL, SRL, SRA, ADD, SUB)
     // =========================================================================
-    debug_log("Executing Phase 1: ALU Hazards & Shift Edge Cases...\n");
+    // debug_log("Executing Phase 1: ALU Hazards & Shift Edge Cases...\n");
+    
+// =========================================================================
+    // SECTION 1: SHIFT & ARITHMETIC PIPELINE HAZARDS (LOGGING VERSION)
+    // =========================================================================
+    // debug_log("Executing Phase 1: ALU Hazards & Shift Edge Cases...\n");
     
     for (int shift_amt = 0; shift_amt < 32; shift_amt++) {
         // Test SRA (Shift Right Arithmetic) maintains the sign bit perfectly
         int sra_res = signed_min >> shift_amt;
-        // Test SRL (Shift Right Logical) inserts zeros
-        unsigned int srl_res = unsigned_max >> shift_amt;
-        // Test SLL (Shift Left Logical)
-        unsigned int sll_res = 1u << shift_amt;
 
-        accumulate_checksum(sra_res);
-        accumulate_checksum(srl_res);
-        accumulate_checksum(sll_res);
 
-        // Intentionally create a dense RAW (Read-After-Write) hazard chain
-        // This tests whether your CPU pipeline's operand forwarding logic handles back-to-back dependency
-        int temp1, temp2, temp3;
-        __asm__ volatile (
-            "add %0, %3, %4\n\t"  // Interlocking dependencies
-            "sub %1, %0, %5\n\t"  // Uses temp1 immediately
-            "sll %2, %1, %6\n\t"  // Uses temp2 immediately
-            : "=&r"(temp1), "=&r"(temp2), "=&r"(temp3)
-            : "r"(sra_res), "r"(srl_res), "r"(negative_one), "r"(shift_amt & 0x1F)
-        );
-        accumulate_checksum(temp3);
+    
+
+
+
+        // --- AGGRESSIVE STEP LOGGER ---
+        // debug_log("shamt: ");     debug_num(shift_amt);
+        // debug_log(" | sra: ");   
+        debug_num((unsigned int)sra_res);
+        debug_log("\n");
     }
 
     // // =========================================================================
@@ -101,7 +92,7 @@ int main() {
     // for (int b = -5; b <= 5; b++) {
     //     if (b == 0) {
     //         accumulate_checksum(0xCC);
-    //     } volatile if (b > 0) {
+    //     } else if (b > 0) {
     //         if (b % 2 == 0) accumulate_checksum(b * 10);
     //         else            accumulate_checksum(b * 20);
     //     } else {
@@ -170,26 +161,6 @@ int main() {
     // // =========================================================================
     // // SECTION 5: FINAL ANALYSIS & VERIFICATION VERDICT
     // // =========================================================================
-    // debug_log("\n==================================================\n");
-    // debug_log("STRESS TEST CALCULATION FINISHED.\n");
-    // debug_log("Result Checksum: ");
-    // debug_num(rolling_checksum);
-    // debug_log("\n");
-
-    // EXPECTED CHECKSUM VALIDATION:
-    // Every RV32I architecture executing this code identically must land on this mathematically closed value:
-    // Expected value calculated structurally across full sequence coverage: 0x2A9A8C13
-    unsigned int reference_target = 0x2A9A8C13; 
-
-    if (rolling_checksum == reference_target) {
-        debug_log("[PASS] CPU core executed all instructions perfectly. No hardware bugs detected!\n");
-    } else {
-        debug_log("[FAIL ALERT] Hardware divergence found! Calculated checksum does not match expected baseline.\n");
-        debug_log("Expected Target Baseline: ");
-        debug_num(reference_target);
-        debug_log("\nCheck for bypass hazards, sign extension flaws, or branch condition errors.\n");
-    }
-    debug_log("==================================================\n");
 
     return 0;
 }

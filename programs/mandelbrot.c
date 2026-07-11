@@ -1,6 +1,6 @@
 __attribute__((naked)) void _start(void) {
     __asm__ volatile(
-"li sp, 0x8000000\n"
+"li sp, 0x4000000\n"
 "call main\n"
 "loop: j loop\n"
 );

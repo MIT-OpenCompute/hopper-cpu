@@ -70,7 +70,7 @@ class MemoryWrapper() extends Module {
   }
 
   when(is_debug_num && io.dcache_start) {
-      printf("%d", io.dcache_req.write_data);
+      printf("0x%x", io.dcache_req.write_data);
   }
 
 

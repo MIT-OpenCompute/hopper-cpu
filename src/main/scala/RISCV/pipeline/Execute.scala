@@ -58,12 +58,18 @@ class Execute() extends Module {
   //     printf("EXEC opcode: %b", io.instruction.bits.opcode)
   //   }
   // }
+
+  // when(inst.rs1 === 19.U || inst.rs2 === 19.U || inst.rd === 19.U){
+  //         printf("inst.opcode: %b  inst.func7: %b inst.func3 %b inst rs1: %d rs2  %d rd %d rs1 valpc: %d\n",inst.opcode, inst.func7, inst.func3, inst.rs1, inst.rs2, inst.rd, inst.pc )
+  // }
   val flush_delay = RegNext(io.jump_flush, false.B)
   switch(state) {
     is(ExecState.IDLE) {
       when(io.flush) {
         valid := false.B
       }.elsewhen(io.stall) {
+        valid := valid
+        bundle := bundle
       }.elsewhen(io.instruction.valid) {
         val inst = io.instruction.bits
         val pc_plus_4 = inst.pc + 4.U
@@ -75,12 +81,13 @@ class Execute() extends Module {
         bundle.rd_wen := false.B
         bundle.rd_val := 0.U
         valid := true.B
-
+  
         switch(inst.opcode) {
+          
 
           // ALU reg-imm / reg-reg
           is("b0010011".U, "b0110011".U) {
-            val neg   = Mux(inst.opcode === "b0110011".U && inst.func7(5), -inst.rs2_val, inst.rs2_val)
+            val neg   = Mux(inst.opcode === "b0110011".U && inst.func7(5) && !(inst.func3===5.U), -inst.rs2_val, inst.rs2_val)
             val alu_b = Mux(inst.opcode === "b0010011".U, inst.immediate, neg)
             alu.io.b := alu_b
             bundle.rd_val := alu.io.output
@@ -95,6 +102,7 @@ class Execute() extends Module {
 
           // Branch
           is("b1100011".U) {
+
             val eq = inst.rs1_val === inst.rs2_val
             val lt_signed = inst.rs1_val.asSInt < inst.rs2_val.asSInt
             val lt_unsigned = inst.rs1_val < inst.rs2_val
@@ -106,6 +114,8 @@ class Execute() extends Module {
             io.pc_redirect.bits := target
             bundle.rd_wen := false.B
             io.jump_flush := take_branch
+            // printf("BRANCH  redir pc: %d inst pc: %d taken %d \n",pc_plus_imm, inst.pc, take_branch)
+
     //           printf("BRANCH rs1=%x rs2=%x take=%b target=%x flush=%b imm= %x pc=%x\n",
     // inst.rs1_val, inst.rs2_val, take_branch, target, io.jump_flush, inst.immediate, inst.pc)
            
@@ -127,6 +137,8 @@ class Execute() extends Module {
 
           // JAL
           is("b1101111".U) {
+                        // printf("JAL target pc: %d inst pc: %d\n",pc_plus_imm, inst.pc)
+
             bundle.rd_val := pc_plus_4
             bundle.rd_wen := true.B
             bundle.pc := pc_plus_imm
@@ -137,6 +149,8 @@ class Execute() extends Module {
 
           // JALR
           is("b1100111".U) {
+                                    // printf("JALR target pc: %d inst pc: %d\n",pc_plus_imm, inst.pc)
+
             val target = addr & ~1.U(32.W)
             bundle.rd_val := pc_plus_4
             bundle.rd_wen := true.B
@@ -175,7 +189,7 @@ class Execute() extends Module {
 
           // Store
           is("b0100011".U) {
-            printf("STORING STORING %x addr: %x inst: %d\n",inst.rs2_val, addr, inst.pc)
+            // printf("STORING STORING %x addr: %x inst: %d\n",inst.rs2_val, addr, inst.pc)
             io.dcache_req.address := addr
        
             io.dcache_req.write_data := inst.rs2_val
@@ -220,7 +234,7 @@ class Execute() extends Module {
         bundle.rd_val := io.dcache_data
         state := ExecState.IDLE
         when(io.dcache_data.asUInt === 100.U){
-        printf("LOADED LOADED %x\n",io.dcache_data)
+        // printf("LOADED LOADED %x\n",io.dcache_data)
         }
         io.memory_stall := false.B
         io.next_instruction.valid := true.B

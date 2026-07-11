@@ -25,7 +25,7 @@ for i in range(len(data)):
     if data[i] == 0xFF:
         run_len += 1
         if run_len == 4:
-            data[i] = 0xFE
+            data[i] = 0xFF
             patched += 1
             run_len = 0  # restart the count after breaking the run
     else:

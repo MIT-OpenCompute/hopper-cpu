@@ -26,7 +26,7 @@ class DCache() extends Module {
         val line_valid = Input(Bool())
     })
 
-    val CACHE_SETS = 64
+    val CACHE_SETS = 256
     val LINE_WIDTH_WORDS = 4
     val LOG_CACHE_SETS = log2Up(CACHE_SETS)
     val LOG_LINE_WIDTH_WORDS = log2Up(LINE_WIDTH_WORDS)
