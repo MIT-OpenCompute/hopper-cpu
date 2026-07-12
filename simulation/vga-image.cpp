@@ -102,6 +102,7 @@ int main(int argc, char** argv) {
         dut->io_vga_clk = dut->clock;
         dut->eval();
     }
+
     dut->reset = 0;
     dut->io_execute = 1; 
     std::vector<uint8_t> pixels(H_VISIBLE * V_VISIBLE * 3, 0);

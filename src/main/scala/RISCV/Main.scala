@@ -83,6 +83,8 @@ class Main() extends Module {
     io.blanking := vga_controller.io.blanking
 
 
+    when(!io.execute) {
+		printf("Loading...\n");
 
     
 

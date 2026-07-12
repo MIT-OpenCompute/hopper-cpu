@@ -39,7 +39,7 @@ int main() {
     int ballY = 120;
     int dX = 1;
     int dY = 1;
-
+    
     for (int i = 0; i < 320; i++) {
         frame[i] = 0xFF;
         frame[239 * 320 + i] = 0xFF;
@@ -133,6 +133,13 @@ int main() {
             for (int y = -20; y <= 20; y++) {
                 frame[320 * (paddY2 + y) + 299 + x] = 0xE0;
             }
+<<<<<<< HEAD
+=======
+        }
+
+        for (int i = 0; i < 8000; i++) {
+            __asm__ volatile("nop");
+>>>>>>> 9f3f1ccb74f58cfae7e2055ad46a2933e7b06a25
         }
         *uart_tx = 'a';
         while (*timer - ctime < 8000) {
