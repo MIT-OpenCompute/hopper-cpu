@@ -93,7 +93,6 @@ class ICache() extends Module {
 switch(state) {
     is(CacheState.IDLE) {
         when(io.start) {
-            // printf("\n\nSTAAAAAAAAAAAARTING\n\n")
             current_mem_req := io.req
             state := CacheState.LOOKUP
         }
@@ -108,7 +107,6 @@ switch(state) {
                 io.done := true.B
             }.otherwise {
                 io.done := true.B
-                // printf("READING HIT READGING HIT %x index: %d  meta: %b\n",data_out, cache_index, meta_out)
 
                 val word_data = words(word_offset)
                 switch(current_mem_req.op){
