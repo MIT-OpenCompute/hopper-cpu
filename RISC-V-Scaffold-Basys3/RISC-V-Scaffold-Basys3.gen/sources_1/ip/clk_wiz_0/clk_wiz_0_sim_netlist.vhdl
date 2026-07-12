@@ -2,7 +2,7 @@
 -- Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -- --------------------------------------------------------------------------------
 -- Tool Version: Vivado v.2025.2 (lin64) Build 6299465 Fri Nov 14 12:34:56 MST 2025
--- Date        : Sun Apr  5 13:21:14 2026
+-- Date        : Sun Jun 14 16:06:02 2026
 -- Host        : arya running 64-bit EndeavourOS Linux
 -- Command     : write_vhdl -force -mode funcsim -rename_top clk_wiz_0 -prefix
 --               clk_wiz_0_ clk_wiz_0_sim_netlist.vhdl
@@ -94,7 +94,7 @@ mmcm_adv_inst: unisim.vcomponents.MMCME2_ADV
       CLKOUT0_DUTY_CYCLE => 0.500000,
       CLKOUT0_PHASE => 0.000000,
       CLKOUT0_USE_FINE_PS => false,
-      CLKOUT1_DIVIDE => 40,
+      CLKOUT1_DIVIDE => 4,
       CLKOUT1_DUTY_CYCLE => 0.500000,
       CLKOUT1_PHASE => 0.000000,
       CLKOUT1_USE_FINE_PS => false,

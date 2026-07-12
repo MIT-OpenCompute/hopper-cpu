@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-RISC-V program loader for Basys3
-Sends a .hex file over UART to the uart_program_loader module.
+RISC-V program loader for Basys3 / Urbana
+Sends a .hex file over UART to the hardware program loader.
+Automatically pads data to 128-bit (16-byte) cache line boundaries.
 
 Usage:
     python load_program.py program.hex
@@ -17,11 +18,11 @@ import argparse
 # -------------------------------------------------------
 # Argument parsing
 # -------------------------------------------------------
-parser = argparse.ArgumentParser(description="Load a RISC-V hex program onto Basys3 over UART")
+parser = argparse.ArgumentParser(description="Load a RIsSC-V hex program onto FPGA over UART")
 parser.add_argument("hex_file",              help="Path to the .hex program file")
 parser.add_argument("--port",  default="COM3", help="Serial port (default: COM3)")
-parser.add_argument("--baud",  default=115200, type=int, help="Baud rate (default: 115200)")
-parser.add_argument("--delay", default=0.01,  type=float, help="Delay between words in seconds (default: 0.01)")
+parser.add_argument("--baud",  default=1000000, type=int, help="Baud rate (default: 115200)")
+parser.add_argument("--delay", default=0.00,  type=float, help="Delay between words in seconds (default: 0.01)")
 args = parser.parse_args()
 
 # -------------------------------------------------------
@@ -36,6 +37,13 @@ try:
                 continue
             try:
                 word = int(line, 16)
+                
+                # SAFETY CHECK: 0xFFFFFFFF triggers the End-Of-File sequence in hardware!
+                # We alter it slightly to prevent the FPGA from prematurely stopping the load.
+                # if word == 0xFFFFFFFF:
+                #     print(f"Warning (Line {lineno}): 0xFFFFFFFF found. Changing to 0xFFFFFFFE to prevent premature EOF.")
+                #     word = 0xFFFFFFFE
+                    
                 words.append(word)
             except ValueError:
                 print(f"Warning: skipping invalid line {lineno}: '{line}'")
@@ -46,6 +54,17 @@ except FileNotFoundError:
 if not words:
     print("Error: no valid words found in hex file")
     sys.exit(1)
+
+# -------------------------------------------------------
+# Pad to 128-bit (16-byte) boundaries
+# -------------------------------------------------------
+# The hardware packs bytes into 16-byte lines before writing to DDR3.
+# If we don't pad it, the final partial line will be discarded.
+remainder = len(words) % 4
+if remainder != 0:
+    padding_needed = 4 - remainder
+    words.extend([0x00000000] * padding_needed)
+    print(f"Note: Padded program with {padding_needed} empty word(s) to align to 16-byte Cache Line boundaries.")
 
 print(f"Loaded {len(words)} words ({len(words) * 4} bytes) from '{args.hex_file}'")
 
@@ -58,21 +77,21 @@ try:
         print("Sending program...")
 
         for i, word in enumerate(words):
-            # Little-endian: LSB first
+            # Little-endian: LSB first (matches RISC-V memory layout)
             data = word.to_bytes(4, byteorder='little')
             ser.write(data)
             time.sleep(args.delay)
 
-            # Progress bar (use ASCII chars instead of unicode)
+            # Progress bar
             pct = (i + 1) / len(words) * 100
             bar = '#' * int(pct / 2) + '-' * (50 - int(pct / 2))
             print(f"\r[{bar}] {pct:.1f}% ({i+1}/{len(words)} words)", end='', flush=True)
 
         print()  # newline after progress bar
 
-        # Send end sequence: 4x 0xFF
-        print("Sending end sequence (0xFF 0xFF 0xFF 0xFF)...")
-        ser.write(bytes([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]))
+        # Send end sequence: 4x 0xFF (plus a couple extra for safety buffer)
+        print("Sending end sequence (0xFF 0xFF 0xFF 0xFF) to boot CPU...")
+        ser.write(bytes([0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE]*8))
         time.sleep(0.1)
 
         print("Done! CPU should now be running your program.")

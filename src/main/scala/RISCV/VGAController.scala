@@ -20,25 +20,29 @@ class VGAController extends Module {
     val io = IO(new Bundle {
         val address = Input(UInt(32.W))
         val write = Input(Bool())
-        val write_value = Input(UInt(8.W))
+        val write_value = Input(UInt(12.W))
         val read_clk = Input(Clock())
 
         val hsync = Output(Bool())
         val vsync = Output(Bool())
         val rgb = Output(UInt(12.W))
         val blanking = Output(Bool())
-
     })
 
-    val memory = SyncReadMem(320 * 240, UInt(8.W))
-
-
+    val memory = SyncReadMem(320 * 240, UInt(12.W))
 
     when(io.write) {
-        memory.write(io.address, io.write_value)
+        memory.write(io.address >> 2, io.write_value)
+
+        // printf("\n\nWRITING TO VGA: %d %b\n\n", io.address, io.write_value);
     }
 
-    withClockAndReset(io.read_clk,reset) {
+    io.hsync := true.B
+    io.vsync := true.B
+    io.rgb := 0.U
+    io.blanking := true.B
+
+    withClockAndReset(io.read_clk, reset) {
         val hCount = RegInit(0.U(10.W))
         val vCount = RegInit(0.U(10.W))
 
@@ -79,13 +83,9 @@ class VGAController extends Module {
             read_address := vCountMult
         }
 
-
-        val color = memory.read(read_address, true.B)
-        val pixel = color(7, 5) ## color(5) ## color(4, 2) ## color(2) ## color(1, 0) ## color(0) ## color(0)
+        val color = memory.read(read_address, true.B, io.read_clk)
+        val pixel = color
 
         io.rgb := Mux(active, pixel, 0.U)
-
-    }
-
-  
+    }  
 }
