@@ -19,7 +19,7 @@ class Main() extends Module {
     val vga_clk = Input(Clock());
     val hsync = Output(Bool())
     val vsync = Output(Bool())
-    val rgb = Output(UInt(12.W))
+    val rgb = Output(UInt(24.W))
     val blanking = Output(Bool())
 
     val mem_req   = Decoupled(new MemLineReq)   

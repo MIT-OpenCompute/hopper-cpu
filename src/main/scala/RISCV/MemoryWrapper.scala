@@ -43,9 +43,9 @@ class MemoryWrapper() extends Module {
 
 
   val mem = Module(new MemoryInterface())
-  val hardwareTimer = Module(new HardwareTimer(100000000))
-  val keyTracker = Module(new UartKeyboardTracker(100000000, 1000000))
-  val uartTx = Module(new UartTxFifo(100000000, 1000000)) 
+  val hardwareTimer = Module(new HardwareTimer(125000000))
+  val keyTracker = Module(new UartKeyboardTracker(125000000, 1000000))
+  val uartTx = Module(new UartTxFifo(125000000, 1000000)) 
 
   io.txd := uartTx.io.out
   uartTx.io.in.bits  := 0.U

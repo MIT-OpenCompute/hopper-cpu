@@ -2,7 +2,7 @@ import sys
 import serial
 
 def main():
-    port = '/dev/ttyUSB1'
+    port = '/dev/ttyUSB2'
     baudrate = 1000000  # 6 Million Baud
 
     print(f"Opening {port} at {baudrate} baud...")

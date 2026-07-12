@@ -28,7 +28,7 @@ import time
 
 import serial
 
-BAUD_RATE = 1000000
+BAUD_RATE =1000000
 
 # ---- HID usage IDs for common keys (USB HID Usage Tables, keyboard page) --
 HID_KEYCODES = {
