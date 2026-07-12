@@ -20,10 +20,16 @@ static constexpr int V_SYNC    = 2;
 static constexpr int V_BACK    = 33;
 static constexpr int V_TOTAL   = V_VISIBLE + V_FRONT + V_SYNC + V_BACK;
 
+static constexpr uint32_t AXI_ADDR_MASK = 0x07FFFFFF;
+
+static inline uint32_t axi_window(uint32_t addr) {
+    return addr & AXI_ADDR_MASK;
+}
+
 // Commits a write request's 128-bit wdata into the mock DDR3 row at the aligned address.
 static void handle_mem_write(std::unique_ptr<VMain>& dut,
                               std::map<uint32_t, std::vector<uint8_t>>& mock_ddr3) {
-    uint32_t addr = dut->io_mem_req_bits_addr;
+    uint32_t addr = axi_window(dut->io_mem_req_bits_addr);
     uint32_t line_base_addr = (addr / 16) * 16;
 
     if (mock_ddr3.find(line_base_addr) == mock_ddr3.end()) {
@@ -35,6 +41,16 @@ static void handle_mem_write(std::unique_ptr<VMain>& dut,
     *(uint32_t*)&data_row[4]  = dut->io_mem_req_bits_wdata[1];
     *(uint32_t*)&data_row[8]  = dut->io_mem_req_bits_wdata[2];
     *(uint32_t*)&data_row[12] = dut->io_mem_req_bits_wdata[3];
+
+        uint32_t raw = dut->io_mem_req_bits_addr;
+    if (raw > AXI_ADDR_MASK) {
+        static bool warned = false;
+        if (!warned) {
+            printf("WARNING: access above 27-bit AXI window: addr=0x%08X (%s) -> aliases to 0x%08X\n",
+                   raw, dut->io_mem_req_bits_write ? "write" : "read", axi_window(raw));
+            warned = true;
+        }
+    }
 }
 
 int main(int argc, char** argv) {
@@ -65,8 +81,8 @@ int main(int argc, char** argv) {
         if (line.empty()) continue;
         uint32_t instruction = std::stoul(line, nullptr, 16);
 
-        uint32_t line_base_addr = (current_byte_addr / 16) * 16;
-        uint32_t byte_offset    = current_byte_addr % 16;
+        uint32_t line_base_addr = (axi_window(current_byte_addr) / 16) * 16;
+                uint32_t byte_offset    = current_byte_addr % 16;
 
         if (mock_ddr3.find(line_base_addr) == mock_ddr3.end()) {
             mock_ddr3[line_base_addr] = std::vector<uint8_t>(16, 0);
@@ -120,7 +136,7 @@ int main(int argc, char** argv) {
                 } else if (!read_in_progress) {
                     read_in_progress = true;
                     read_latency_counter = 4; 
-                    active_read_addr = dut->io_mem_req_bits_addr;
+                    active_read_addr = axi_window(dut->io_mem_req_bits_addr);
                 }
             } else {
                 dut->io_mem_req_ready = 0;

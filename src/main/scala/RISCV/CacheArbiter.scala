@@ -106,27 +106,4 @@ class CacheArbiter() extends Module {
         io.resp_to_dcache
       )
     }
-
-    // // 6. Arbiter Logging Snippet
-    // // Trigger on any active write request being accepted or currently processed
-    // val incoming_dcache_write = io.dcache_req.valid && io.dcache_req.ready && io.dcache_req.bits.write
-    // val incoming_icache_write = io.icache_req.valid && io.icache_req.ready && io.icache_req.bits.write
-    // val ongoing_write_to_mem  = io.mem_req.valid && io.mem_req.bits.write
-
-    // when(incoming_dcache_write || incoming_icache_write || ongoing_write_to_mem) {
-    //   printf("--- ARBITER WRITE DETECTED ---\n")
-      
-    //   when(incoming_dcache_write) {
-    //     printf("  [LATCHED D-CACHE WRITE] Addr: 0x%x | Data: 0x%x\n", 
-    //       io.dcache_req.bits.addr, io.dcache_req.bits.wdata)
-    //   }
-    //   when(incoming_icache_write) {
-    //     printf("  [LATCHED I-CACHE WRITE] Addr: 0x%x | Data: 0x%x\n", 
-    //       io.icache_req.bits.addr, io.icache_req.bits.wdata)
-    //   }
-    //   when(ongoing_write_to_mem) {
-    //     printf("  [MEM REQ WRITE OUT]     Ready: %d | Addr: 0x%x | Data: 0x%x\n", 
-    //       io.mem_req.ready, io.mem_req.bits.addr, io.mem_req.bits.wdata)
-    //   }
-    // }
 }

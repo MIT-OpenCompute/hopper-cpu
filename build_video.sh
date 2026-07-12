@@ -42,6 +42,6 @@ echo "Loading program..."
 python load_program.py "${BIN%.bin}.hex" --port /dev/ttyUSB1
 
 echo "Cleaning up..."
-rm -f "$OBJ_C" "$OBJ_S" "$ELF" "$BIN"
+rm -f "$OBJ_C" "$OBJ_S" "$ELF" 
 
 echo "Done."

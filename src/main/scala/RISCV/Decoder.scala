@@ -59,8 +59,7 @@ class Decoder() extends Module {
             io.immediate := Fill(21, io.instruction(31, 31)) ## io.instruction(31, 25) ## io.instruction(11, 7);
         }
         is(InstructionFormat.B) {
-            io.immediate := Fill(20, io.instruction(31, 31)) ## io.instruction(7, 7) ## io.instruction(31, 25) ## io.instruction(11, 8) ## 0
-                .U(1.W);
+            io.immediate := Fill(20, io.instruction(31, 31)) ## io.instruction(7, 7) ## io.instruction(30, 25) ## io.instruction(11, 8) ## 0.U(1.W);
         }
         is(InstructionFormat.U) {
             io.immediate := io.instruction(31, 12) ## 0.U(12.W);

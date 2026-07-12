@@ -32,6 +32,8 @@ class Main() extends Module {
     val rxd = Input(Bool())
     val txd = Output(Bool())
 
+    val mem_stall = Output(Bool())
+
 
     })
 
@@ -46,6 +48,7 @@ class Main() extends Module {
     core.io.icache_ready := memory.io.icache_ready
     core.io.icache_valid := memory.io.icache_valid
     core.io.icache_data := memory.io.icache_data
+    io.mem_stall := core.io.mem_stall
 
     memory.io.dcache_req := core.io.dcache_req
     memory.io.dcache_start := core.io.dcache_start
