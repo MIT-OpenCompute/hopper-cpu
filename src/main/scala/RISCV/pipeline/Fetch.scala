@@ -46,7 +46,7 @@ class Fetch() extends Module {
   io.f2d.bits  := f2d_reg
 
   val redirecting = io.execute && io.f_req.fetch_op === FetchOp.RD
-  val can_issue = io.icache_ready && (!in_flight || io.icache_valid)
+  val can_issue = io.icache_ready && !in_flight
 
   def issue(addr: UInt): Unit = {
     io.icache_req.address := addr

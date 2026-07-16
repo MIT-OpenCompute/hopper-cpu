@@ -28,6 +28,7 @@ class Execute() extends Module {
   })
 
   val alu = Module(new ALU())
+  val malu = Module(new MALU())
 
   val state = RegInit(ExecState.IDLE)
   val bundle = RegInit(0.U.asTypeOf(new InstructionBundle()))
@@ -51,6 +52,15 @@ class Execute() extends Module {
   alu.io.func3 := io.instruction.bits.func3
   alu.io.a := io.instruction.bits.rs1_val
   alu.io.b := 0.U
+
+  malu.io.func7 := io.instruction.bits.func7
+  malu.io.func3 := io.instruction.bits.func3
+  malu.io.a := io.instruction.bits.rs1_val
+  malu.io.b := 0.U
+
+
+
+
   // when(true.B){
   //   printf("EXECUTE %b\n",io.instruction.valid)
   //   printf("Exec flush %b stall %b" , io.flush, io.stall)
@@ -89,8 +99,10 @@ class Execute() extends Module {
           is("b0010011".U, "b0110011".U) {
             val neg   = Mux(inst.opcode === "b0110011".U && inst.func7(5) && !(inst.func3===5.U), -inst.rs2_val, inst.rs2_val)
             val alu_b = Mux(inst.opcode === "b0010011".U, inst.immediate, neg)
+            val isM = inst.opcode === "b0110011".U && inst.func7 === "b0000001".U
             alu.io.b := alu_b
-            bundle.rd_val := alu.io.output
+            malu.io.b := alu_b
+            bundle.rd_val := Mux(isM,malu.io.output,alu.io.output)
             bundle.rd_wen := true.B
     //          printf("ALU pc=%x rd=%d rs1=%x rs2_val=%x imm=%x result=%x\n",
     // inst.pc, inst.rd, inst.rs1_val, inst.rs2_val, inst.immediate, alu.io.output)

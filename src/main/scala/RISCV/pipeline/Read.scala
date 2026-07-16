@@ -44,7 +44,5 @@ class Read() extends Module {
   io.next_instruction.bits.rs2_val := io.register_value_b
   io.next_instruction.valid := valid
 
-  // printf("READ OUT opcode: %b valid: %b rs1addr: %d rs1_val: %x rs2_val: %x\n",
-  //   io.next_instruction.bits.opcode, io.next_instruction.valid, RegNext(io.instruction.bits.rs1),
-  //   io.next_instruction.bits.rs1_val, io.next_instruction.bits.rs2_val)
+  
 }

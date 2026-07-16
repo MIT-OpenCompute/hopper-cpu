@@ -100,9 +100,8 @@ class MemoryInterface() extends Module {
   io.mem_req.bits.wdata := arbiter.io.mem_req.bits.wdata
 
   arbiter.io.mem_req.ready :=  io.mem_req.ready
-// Route the memory response signals straight into the Arbiter
   arbiter.io.mem_resp      := io.mem_resp
-  arbiter.io.mem_valid     := io.mem_valid // Let the arbiter handle gating internally
+  arbiter.io.mem_valid     := io.mem_valid 
 
   icache.io.line_result := io.mem_resp
   icache.io.line_valid  := arbiter.io.resp_to_icache
