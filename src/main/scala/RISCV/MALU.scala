@@ -12,6 +12,8 @@ class MALU(val width: Int = 32) extends Module {
         val a = Input(UInt(width.W)); // First operand
         val b = Input(UInt(width.W)); // Second operand
         val output = Output(UInt(width.W)); // Result of the operation
+        // val ready = Input(Bool())
+        // val valid = Output(Bool())
     })
     io.output := 0.U;
     val m_alu = Wire(UInt(width.W));
@@ -44,42 +46,42 @@ class MALU(val width: Int = 32) extends Module {
         is("b011".U) {
             m_alu := (io.a * io.b)(63, 32)
         }
-        //DIV
-        is("b100".U) {
-            when(io.b === 0.U) {
-                m_alu := Fill(width, 1.U)
-            }.elsewhen(io.a === (1.U << (width-1)) && b_s === (-1).S) {
-                m_alu := io.a
-            }.otherwise {
-                m_alu := (a_s / b_s).asUInt
-            }
-        }
-        //DIVU
-        is("b101".U) {
-            when(io.b === 0.U) {
-                m_alu := Fill(width, 1.U)
-            }.otherwise {
-                m_alu := io.a / io.b
-            }
-        }
-        //REM
-        is("b110".U) {
-            when(io.b === 0.U) {
-                m_alu := io.a
-            }.elsewhen(io.a === (1.U << (width-1)) && b_s === (-1).S){
-                m_alu := 0.U
-            }.otherwise {
-                m_alu := (a_s % b_s).asUInt
-            }
-        }
-        //REMU
-        is("b111".U) {
-            when(io.b === 0.U) {
-                m_alu := io.a
-            }.otherwise {
-                m_alu := io.a % io.b
-            }
-        }
+        // //DIV
+        // is("b100".U) {
+        //     when(io.b === 0.U) {
+        //         m_alu := Fill(width, 1.U)
+        //     }.elsewhen(io.a === (1.U << (width-1)) && b_s === (-1).S) {
+        //         m_alu := io.a
+        //     }.otherwise {
+        //         m_alu := (a_s / b_s).asUInt
+        //     }
+        // }
+        // //DIVU
+        // is("b101".U) {
+        //     when(io.b === 0.U) {
+        //         m_alu := Fill(width, 1.U)
+        //     }.otherwise {
+        //         m_alu := io.a / io.b
+        //     }
+        // }
+        // //REM
+        // is("b110".U) {
+        //     when(io.b === 0.U) {
+        //         m_alu := io.a
+        //     }.elsewhen(io.a === (1.U << (width-1)) && b_s === (-1).S){
+        //         m_alu := 0.U
+        //     }.otherwise {
+        //         m_alu := (a_s % b_s).asUInt
+        //     }
+        // }
+        // //REMU
+        // is("b111".U) {
+        //     when(io.b === 0.U) {
+        //         m_alu := io.a
+        //     }.otherwise {
+        //         m_alu := io.a % io.b
+        //     }
+        // }
     }
     
    
