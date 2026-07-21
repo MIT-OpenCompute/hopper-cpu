@@ -30,7 +30,7 @@ class ICache() extends Module {
     })
 
 
-    val CACHE_SETS = 1024
+    val CACHE_SETS = 2048
     val LINE_WIDTH_WORDS = 4
     val LOG_CACHE_SETS = log2Up(CACHE_SETS)
     val LOG_LINE_WIDTH_WORDS = log2Up(LINE_WIDTH_WORDS)
@@ -59,14 +59,16 @@ class ICache() extends Module {
     val data_array = SyncReadMem(CACHE_SETS, UInt((32 * LINE_WIDTH_WORDS).W))
     val state = RegInit(CacheState.IDLE)
     val current_mem_req = RegInit(0.U.asTypeOf(new MemReq))
-    val lookup_address = Mux(io.start, io.req.address, current_mem_req.address)
+    val fire = io.ready && io.start
+    val lookup_address = Mux(fire, io.req.address, current_mem_req.address)
+    // val lookup_address = Mux(state === CacheState.IDLE, io.req.address, current_mem_req.address)
 
-    byte_offset := getByteOffset(lookup_address)
-    cache_index := getIndex(lookup_address)
-    word_offset := getWordOffset(lookup_address)
-    cache_tag := getTag(lookup_address)
-    line_addr := getLineAddr(lookup_address)
-    val read_enable = io.start || state === CacheState.LOOKUP
+    byte_offset := RegNext(getByteOffset(lookup_address))
+    cache_index := (getIndex(lookup_address))
+    word_offset := RegNext(getWordOffset(lookup_address))
+    cache_tag := RegNext(getTag(lookup_address))
+    line_addr := RegNext(getLineAddr(lookup_address))
+    val read_enable = state === CacheState.IDLE || state === CacheState.LOOKUP
     val data_out = Wire(UInt((32 * LINE_WIDTH_WORDS).W))
     data_out := data_array.read(cache_index, read_enable)  
 
@@ -79,8 +81,8 @@ class ICache() extends Module {
     val meta_out = meta_array.read(cache_index, read_enable) 
     val status = meta_out(meta_out.getWidth-1, meta_out.getWidth-2) 
     val tag = meta_out(meta_out.getWidth-3, 0)    
-
-    io.ready:= state === CacheState.IDLE // or hit
+    val hit = cache_tag === tag && status(1) === 1.U
+    io.ready:= state === CacheState.IDLE || (state === CacheState.LOOKUP && hit) // or hit
     io.wb := false.B
     io.wb_data := data_out
     io.wb_addr := Cat(tag, cache_index, 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
@@ -100,7 +102,8 @@ switch(state) {
 
     is(CacheState.LOOKUP) {
         when(cache_tag === tag && status(1) === 1.U) { // hit
-            state := CacheState.IDLE
+
+            
 
             when(current_mem_req.write) {
              
@@ -133,6 +136,13 @@ switch(state) {
                     }
                 }
             }
+            when(io.start){
+                current_mem_req := io.req
+                state := CacheState.LOOKUP
+            }.otherwise{
+                state := CacheState.IDLE
+            }
+
         }.otherwise { // miss
             when(status === "b11".U) { // valid + dirty → writeback first
                 state := CacheState.WRITEBACK
@@ -188,7 +198,7 @@ switch(state) {
         }
     }
 }   
-  when(false.B) {
+  when((io.start || state =/= CacheState.IDLE) && false.B) {
     printf("ICACHE cycle: state=%d | req=[addr=%x wdata=%x r=%d w=%d] | idx=%x tag=%x word_off=%x | meta=[status=%b tag=%x] | data_out=%x | data=%x done=%d miss=%d wb=%d | line_valid=%d line_result=%x | wb_addr=%x line_addr=%x\n",
         state.asUInt,
         current_mem_req.address,

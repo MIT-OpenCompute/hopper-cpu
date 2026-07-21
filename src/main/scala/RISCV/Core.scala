@@ -50,7 +50,7 @@ class Core() extends Module {
     val fetch_stall = raw_stall || memory_stall || !io.execute
     val fetch_stall_prev = RegNext(fetch_stall, true.B)
     val fetch_op =
-        Mux(jump_flush, FetchOp.RD, Mux(fetch_stall, FetchOp.ST, Mux(false.B, FetchOp.ST, FetchOp.DQ))) // hold one extra cycle on release
+        Mux(jump_flush, FetchOp.RD, Mux(fetch_stall, FetchOp.ST, Mux(false.B, FetchOp.ST, FetchOp.DQ))) 
 
     fetch.io.f_req.fetch_op := fetch_op
     fetch.io.f_req.redirect_addr := execute.io.pc_redirect.bits
@@ -100,17 +100,17 @@ class Core() extends Module {
 
     io.icache_start := fetch.io.icache_start
 
-when(io.latch_in) {
-// printf("\n\n\n=== Fetch ===\n")
+// when(io.latch_in || io.execute) {
+// printf("\n\n=== Fetch ===\n")
 // printf("fetch op %d\n",fetch_op.asUInt)
 // printf("f2d valid: %b\n",  fetch.io.f2d.valid)
 // // printf("f2d pc: %d  inst: %x Regs: 01: %x 02: %x 03: %x 04: %x 05: %x 06: %x 07: %x 08: %x 09: %x 10: %x 11: %x 12: %x 13: %x 14: %x 15: %x 16: %x 17: %x 18: %x 19: %x 20: %x 21: %x 22: %x 23: %x 24: %x 25: %x 26: %x 27: %x 28: %x 29: %x 30: %x 31: %x \n", fetch.io.f2d.bits.pc, fetch.io.f2d.bits.inst, registers.io.debug_1, registers.io.debug_2, registers.io.debug_3, registers.io.debug_4, registers.io.debug_5, registers.io.debug_6, registers.io.debug_7, registers.io.debug_8, registers.io.debug_9, registers.io.debug_10, registers.io.debug_11, registers.io.debug_12, registers.io.debug_13, registers.io.debug_14, registers.io.debug_15, registers.io.debug_16, registers.io.debug_17, registers.io.debug_18, registers.io.debug_19, registers.io.debug_20, registers.io.debug_21, registers.io.debug_22, registers.io.debug_23, registers.io.debug_24, registers.io.debug_25, registers.io.debug_26, registers.io.debug_27, registers.io.debug_28, registers.io.debug_29, registers.io.debug_30, registers.io.debug_31);// printf("f2d inst: %b\n",  fetch.io.f2d.bits.inst)
-printf("f2d pc: %d inst: %x imm: %d \n", fetch.io.f2d.bits.pc, fetch.io.f2d.bits.inst, decode.io.decoded.bits.immediate);
+// printf("f2d pc: %d inst: %x fop: %d stall: %d\n", fetch.io.f2d.bits.pc, fetch.io.f2d.bits.inst, fetch_op.asUInt, fetch_stall );
 // printf("f2d inst: %b\n",  fetch.io.f2d.bits.inst)
 
 // printf("icache valid: %b\n",   fetch.io.icache_valid)
 // printf("jump_flush=%b fetch_op=%d redirect=%x\n", jump_flush, fetch_op.asUInt, execute.io.pc_redirect.bits)
-// // printf("decode consumed: %b\n",   decode_consumed)
+// // // printf("decode consumed: %b\n",   decode_consumed)
 
 // printf("=== Decode ===\n")
 // printf("valid: %b\n",  decode.io.decoded.valid)
@@ -181,7 +181,7 @@ printf("f2d pc: %d inst: %x imm: %d \n", fetch.io.f2d.bits.pc, fetch.io.f2d.bits
 // 		printf("08: %x\n", registers.io.debug_8);
 // 		printf("09: %x\n", registers.io.debug_9);
 // 		printf("10: %x\n", registers.io.debug_10);		
-	}
+	// }
 }
 
 object Core extends App {

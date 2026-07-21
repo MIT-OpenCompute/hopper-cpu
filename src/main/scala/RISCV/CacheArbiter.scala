@@ -12,14 +12,14 @@ class MemLineReq extends Bundle {
 
 class CacheArbiter() extends Module {
     val io = IO(new Bundle {
-      val icache_req   = Flipped(Decoupled(new MemLineReq))
-      val dcache_req   = Flipped(Decoupled(new MemLineReq))
-      val mem_req      = Decoupled(new MemLineReq)
-      val mem_resp     = Input(UInt(128.W))
-      val mem_valid    = Input(Bool())
+      val icache_req = Flipped(Decoupled(new MemLineReq))
+      val dcache_req = Flipped(Decoupled(new MemLineReq))
+      val mem_req = Decoupled(new MemLineReq)
+      val mem_resp = Input(UInt(128.W))
+      val mem_valid = Input(Bool())
       val resp_to_icache = Output(Bool())
       val resp_to_dcache = Output(Bool())
-      val idle           = Output(Bool())
+      val idle = Output(Bool())
     })
 
     val serving_icache = RegInit(false.B)
@@ -33,12 +33,12 @@ class CacheArbiter() extends Module {
 
     when(idle) {
       when(io.dcache_req.valid) {
-        serving_dcache   := true.B
-        latched_req      := io.dcache_req.bits
+        serving_dcache := true.B
+        latched_req := io.dcache_req.bits
         mem_req_accepted := false.B
       }.elsewhen(io.icache_req.valid) {
-        serving_icache   := true.B
-        latched_req      := io.icache_req.bits
+        serving_icache := true.B
+        latched_req := io.icache_req.bits
         mem_req_accepted := false.B
       }
     }.otherwise {
@@ -53,17 +53,16 @@ class CacheArbiter() extends Module {
       mem_req_accepted := false.B
     }
 
-    io.mem_req.valid    := (serving_icache || serving_dcache) && !mem_req_accepted
-    io.mem_req.bits     := latched_req
+    io.mem_req.valid := (serving_icache || serving_dcache) && !mem_req_accepted
+    io.mem_req.bits := latched_req
 
 
     io.icache_req.ready := idle
     io.dcache_req.ready := idle && !io.icache_req.valid
 
-    // 5. Response Routing
-    io.resp_to_icache   := io.mem_valid && serving_icache
-    io.resp_to_dcache   := io.mem_valid && serving_dcache
-    io.idle             := idle
+    io.resp_to_icache := io.mem_valid && serving_icache
+    io.resp_to_dcache := io.mem_valid && serving_dcache
+    io.idle := idle
   
     when(false.B) {
       

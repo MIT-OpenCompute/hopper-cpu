@@ -48,6 +48,7 @@ HID_KEYCODES = {
     'right': 0x4F, 'left': 0x50, 'down': 0x51, 'up': 0x52,
     'left ctrl': 0xE0, 'left shift': 0xE1, 'left alt': 0xE2, 'left windows': 0xE3,
     'right ctrl': 0xE4, 'right shift': 0xE5, 'right alt': 0xE6, 'right windows': 0xE7,
+    'ctrl': 0xE0, 'shift': 0xE1, 'alt': 0xE2, 'windows': 0xE3,
 }
 
 

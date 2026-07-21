@@ -8,26 +8,26 @@ import chisel3.util.experimental.loadMemoryFromFileInline
 
 class MemoryWrapper() extends Module {
   val io = IO(new Bundle {
-    val icache_req   = Input(new MemReq)
+    val icache_req = Input(new MemReq)
     val icache_start = Input(Bool())
     val icache_ready = Output(Bool())
     val icache_valid = Output(Bool())
-    val icache_data  = Output(UInt(32.W))
+    val icache_data = Output(UInt(32.W))
 
-    val dcache_req   = Input(new MemReq)
+    val dcache_req = Input(new MemReq)
     val dcache_start = Input(Bool())
     val dcache_ready = Output(Bool())
     val dcache_valid = Output(Bool())
-    val dcache_data  = Output(UInt(32.W))
+    val dcache_data = Output(UInt(32.W))
 
-    val debug_req    = Input(new MemReq)
-    val debug_start  = Input(Bool())
-    val debug_ready  = Output(Bool())
-    val debug_valid  = Output(Bool())
-    val debug_data   = Output(UInt(32.W))
+    val debug_req = Input(new MemReq)
+    val debug_start = Input(Bool())
+    val debug_ready = Output(Bool())
+    val debug_valid = Output(Bool())
+    val debug_data = Output(UInt(32.W))
 
-    val mem_req   = Decoupled(new MemLineReq)   
-    val mem_resp  = Input(UInt(128.W))
+    val mem_req = Decoupled(new MemLineReq)   
+    val mem_resp = Input(UInt(128.W))
     val mem_valid = Input(Bool()) 
 
     val address_vga = Output(UInt(32.W))
@@ -112,7 +112,7 @@ class MemoryWrapper() extends Module {
 
   io.address_vga := io.dcache_req.address - 0x10000000.U
   io.write_vga := is_vga && io.dcache_req.write && io.dcache_start
-  io.write_value_vga := io.dcache_req.write_data
+  io.write_value_vga := io.dcache_req.write_data(23,20) ## io.dcache_req.write_data(15,12) ## io.dcache_req.write_data(7,4)
   io.handshake_bypass := is_excep
 
  
@@ -137,7 +137,7 @@ class MemoryWrapper() extends Module {
   io.debug_valid := mem.io.debug_valid
   io.debug_data := mem.io.debug_data
 
-  io.mem_req       <> mem.io.mem_req
+  io.mem_req <> mem.io.mem_req
   mem.io.mem_resp := io.mem_resp
   mem.io.mem_valid := io.mem_valid
 

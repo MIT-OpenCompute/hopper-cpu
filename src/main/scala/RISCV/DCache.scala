@@ -26,7 +26,7 @@ class DCache() extends Module {
         val line_valid = Input(Bool())
     })
 
-    val CACHE_SETS = 1024
+    val CACHE_SETS = 2048
     val LINE_WIDTH_WORDS = 4
     val LOG_CACHE_SETS = log2Up(CACHE_SETS)
     val LOG_LINE_WIDTH_WORDS = log2Up(LINE_WIDTH_WORDS)
@@ -51,7 +51,6 @@ class DCache() extends Module {
     // Address Selection: Address lookup mapping 
     val lookup_address = Mux(io.start, io.req.address, current_mem_req.address)
 
-    // Pipeline alignment registers to sync with BRAM read latency 
     val lookup_address_reg = RegNext(lookup_address)
     byte_offset := getByteOffset(lookup_address_reg)
     cache_index := getIndex(lookup_address_reg)
@@ -61,7 +60,7 @@ class DCache() extends Module {
 
     // Addressing index inputs straight out to the asynchronous memory blocks
     val raw_index = getIndex(lookup_address)
-    val read_enable = io.start || state === CacheState.LOOKUP || state === CacheState.MISS
+    val read_enable = state === CacheState.IDLE || state === CacheState.LOOKUP || state === CacheState.MISS
     
     val data_out = data_array.read(raw_index, read_enable)
     val meta_out = meta_array.read(raw_index, read_enable) 
@@ -84,7 +83,8 @@ class DCache() extends Module {
 
     val valid_cleared = RegInit(true.B)
 
-    io.ready     := state === CacheState.IDLE
+    val hit = cache_tag === tag && status(1) === 1.U
+    io.ready     := state === CacheState.IDLE || (state === CacheState.LOOKUP && hit && !current_mem_req.write)
     io.wb        := state === CacheState.WRITEBACK
     io.wb_data   := wb_data_reg
     io.wb_addr   := wb_addr_reg
@@ -103,7 +103,12 @@ class DCache() extends Module {
 
         is(CacheState.LOOKUP) {
             when(cache_tag === tag && status(1) === 1.U) { // HIT
-                state := CacheState.IDLE
+                    when(io.start){
+                        current_mem_req := io.req
+                        state := CacheState.LOOKUP
+                    }.otherwise{
+                        state := CacheState.IDLE
+                    }
 
                 when(current_mem_req.write) {
                     val updated_line = Wire(UInt(128.W))
@@ -178,10 +183,10 @@ class DCache() extends Module {
                     wb_data_reg := data_out
                     wb_addr_reg := Cat(tag, getIndex(current_mem_req.address), 0.U((LOG_LINE_WIDTH_WORDS + 2).W))
                     state       := CacheState.WRITEBACK
-                    valid_cleared := false.B // We are entering writeback; handshake needs clearing afterwards
+                    valid_cleared := false.B 
                 }.otherwise {            
                     state := CacheState.MISS
-                    valid_cleared := true.B // Normal miss, no writeback to pollute wire
+                    valid_cleared := true.B 
                 }
             }
         }
@@ -195,17 +200,15 @@ class DCache() extends Module {
         }
 
         is(CacheState.MISS) {
-            // FIX: If we haven't seen line_valid drop to 0 after writeback, force it to clear first
             when(!valid_cleared) {
                 when(!io.line_valid) {
                     valid_cleared := true.B
                 }
-                io.miss := true.B // Hold miss out high to Arbiter
+                io.miss := true.B 
             }.otherwise {
                 when(!io.line_valid) {
                     io.miss := true.B
                 }.otherwise {
-                    // Safe to proceed: line_valid is high and it's explicitly for the READ request
                     when(current_mem_req.write) {
                         val updated_line = Wire(UInt(128.W))
                         updated_line := io.line_result
@@ -297,26 +300,21 @@ class DCache() extends Module {
             io.ready,
             io.done,
             io.miss,
-            // Upstream CPU Core request details
             io.start,
             current_mem_req.write,
             current_mem_req.op.asUInt,
             current_mem_req.address,
             current_mem_req.write_data,
-            // Decoded internal pipeline fields
             lookup_address_reg,
             cache_index,
             cache_tag,
             word_offset,
             byte_offset,
-            // Current SRAM/BRAM array outputs
             meta_out,
             data_out,
-            // Outbound Writeback signals
             io.wb,
             io.wb_addr,
             io.wb_data,
-            // Inbound Arbiter Line refills
             io.line_valid,
             io.line_addr,
             io.line_result
